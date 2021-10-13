@@ -1,98 +1,11 @@
-use crate::config;
 use failure::Error;
 use msnmp::msg_factory;
 use msnmp::request::get_var_binds;
 use msnmp::session::{Session, Step};
 use msnmp::Client;
 use snmp_mp::{ObjectIdent, PduType, VarBind, VarValue};
-use snmp_usm::{
-    Aes128PrivKey, AuthKey, DesPrivKey, Digest, LocalizedKey, Md5, PrivKey, Sha1, WithLocalizedKey,
-};
+use snmp_usm::{Digest, PrivKey};
 use std::time::SystemTime;
-
-macro_rules! execute_request {
-    ($digest:ty, $params:expr, $oid:expr, $timeout:expr, $snmp_func:expr) => {{
-        if config::SnmpPrivProtocol::Aes == $params.privprotocol {
-            let salt = rand::random();
-            execute_request::<
-                $digest,
-                Aes128PrivKey<$digest>,
-                <Aes128PrivKey<$digest> as PrivKey>::Salt,
-            >($params, $oid, salt, $timeout, $snmp_func)
-        } else {
-            let salt = rand::random();
-            execute_request::<$digest, DesPrivKey<$digest>, <DesPrivKey<$digest> as PrivKey>::Salt>(
-                $params, $oid, salt, $timeout, $snmp_func,
-            )
-        }
-    }};
-}
-
-fn execute_request<'a, D: 'a, P, S>(
-    params: &config::DeviceSnmpSettings,
-    oid: Vec<VarBind>,
-    salt: P::Salt,
-    timeout: u64,
-    snmp_func: fn(
-        Vec<VarBind>,
-        &mut Client,
-        &mut Session<D, P, S>,
-    ) -> Result<Vec<(SystemTime, VarBind)>, Error>,
-) -> Result<Vec<(SystemTime, VarBind)>, Error>
-where
-    D: Digest,
-    P: PrivKey<Salt = S> + WithLocalizedKey<'a, D>,
-    S: msnmp::session::Step + Copy,
-{
-    let host = if params.host.find(':').is_none() {
-        format!("{}:{}", params.host, msnmp::SNMP_PORT_NUM)
-    } else {
-        params.host.clone()
-    };
-
-    let mut client = msnmp::client::Client::new(host, Some(timeout))?;
-    let mut session = msnmp::session::Session::new(&mut client, params.secname.as_bytes())?;
-
-    let localized_key = LocalizedKey::<D>::new(params.authpassword.as_bytes(), session.engine_id());
-    let auth_key = AuthKey::new(localized_key);
-    session.set_auth_key(auth_key);
-
-    let localized_key = LocalizedKey::<D>::new(params.privpassword.as_bytes(), session.engine_id());
-    let priv_key = P::with_localized_key(localized_key);
-    session.set_priv_key_and_salt(priv_key, salt);
-
-    snmp_func(oid, &mut client, &mut session)
-}
-
-pub fn fetch_table(
-    params: &config::DeviceSnmpSettings,
-    oid: Vec<VarBind>,
-    timeout: u64,
-) -> Result<Vec<(SystemTime, VarBind)>, Error> {
-    match &params.authprotocol {
-        config::SnmpAuthProtocol::Sha => {
-            execute_request!(Sha1, params, oid, timeout, snmp_bulkwalk)
-        }
-        config::SnmpAuthProtocol::Md5 => {
-            execute_request!(Md5, params, oid, timeout, snmp_bulkwalk)
-        }
-    }
-}
-
-pub fn fetch_var_binds(
-    params: &config::DeviceSnmpSettings,
-    oid: Vec<VarBind>,
-    timeout: u64,
-) -> Result<Vec<(SystemTime, VarBind)>, Error> {
-    match &params.authprotocol {
-        config::SnmpAuthProtocol::Sha => {
-            execute_request!(Sha1, params, oid, timeout, snmp_get)
-        }
-        config::SnmpAuthProtocol::Md5 => {
-            execute_request!(Md5, params, oid, timeout, snmp_get)
-        }
-    }
-}
 
 pub fn snmp_bulkwalk<D, P, S>(
     oid: Vec<VarBind>,

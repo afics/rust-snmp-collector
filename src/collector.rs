@@ -11,13 +11,59 @@ use log::{debug, error, info, warn};
 use failure::Error;
 use rand::Rng;
 
+use msnmp::session::{Session, Step};
+use msnmp::Client;
 use snmp_mp::{VarBind, VarValue};
+use snmp_usm::{
+    Aes128PrivKey, AuthKey, DesPrivKey, Digest, LocalizedKey, Md5, PrivKey, Sha1, WithLocalizedKey,
+};
 
 use crate::config::Config;
+use crate::config::{SnmpAuthProtocol, SnmpPrivProtocol};
 use crate::snmp::{
-    fetch_table as snmp_fetch_table, fetch_var_binds as snmp_fetch_var_binds, vec_to_var_binds,
+    snmp_bulkwalk as snmp_fetch_table, snmp_get as snmp_fetch_var_binds, vec_to_var_binds,
 };
 use crate::stat_result::SnmpStatResult;
+
+macro_rules! collect_device {
+    ($digest:ty, $device_name:expr, $config:expr, $oid_var_bind_map:expr, $channel:expr) => {{
+        let device = $config.devices.get($device_name).unwrap();
+        if SnmpPrivProtocol::Aes == device.snmp.privprotocol {
+            let salt = rand::random();
+            collect_device_::<
+                $digest,
+                Aes128PrivKey<$digest>,
+                <Aes128PrivKey<$digest> as PrivKey>::Salt,
+            >($device_name, $config, $oid_var_bind_map, $channel, salt)
+        } else {
+            let salt = rand::random();
+            collect_device_::<$digest, DesPrivKey<$digest>, <DesPrivKey<$digest> as PrivKey>::Salt>(
+                $device_name,
+                $config,
+                $oid_var_bind_map,
+                $channel,
+                salt,
+            )
+        }
+    }};
+}
+
+pub fn collect_device(
+    device_name: String,
+    config: Arc<Config>,
+    oid_var_bind_map: HashMap<String, VarBind>,
+    channel: CrossbeamSender<SnmpStatResult>,
+) -> Result<(), Error> {
+    let device = config.devices.get(&device_name).unwrap();
+    match &device.snmp.authprotocol {
+        SnmpAuthProtocol::Sha => {
+            collect_device!(Sha1, &device_name, config, oid_var_bind_map, channel)
+        }
+        SnmpAuthProtocol::Md5 => {
+            collect_device!(Md5, &device_name, config, oid_var_bind_map, channel)
+        }
+    }
+}
 
 pub fn collect_device_safe(
     device_name: String,
@@ -58,14 +104,20 @@ pub fn collect_device_safe(
     }
 }
 
-pub fn collect_device(
-    device_name: String,
+fn collect_device_<'a, D: 'a, P, S>(
+    device_name: &String,
     config: Arc<Config>,
     oid_var_bind_map: HashMap<String, VarBind>,
     channel: CrossbeamSender<SnmpStatResult>,
-) -> Result<(), Error> {
+    salt: P::Salt,
+) -> Result<(), Error>
+where
+    D: Digest,
+    P: PrivKey<Salt = S> + WithLocalizedKey<'a, D>,
+    S: Step + Copy,
+{
     debug!("collect_device({}): start", device_name);
-    let device = config.devices.get(&device_name).unwrap();
+    let device = config.devices.get(device_name).unwrap();
     let interval = Duration::from_secs(device.interval.into());
 
     // condense mibs to connect
@@ -91,6 +143,27 @@ pub fn collect_device(
 
     let timeout = device.snmp.timeout.0;
 
+    // snmp
+    let host = if device.snmp.host.find(':').is_none() {
+        format!("{}:{}", device.snmp.host, msnmp::SNMP_PORT_NUM)
+    } else {
+        device.snmp.host.clone()
+    };
+
+    let mut client = Client::new(host, Some(timeout))?;
+    let mut session: Session<D, P, S> = Session::new(&mut client, device.snmp.secname.as_bytes())?;
+
+    let localized_key =
+        LocalizedKey::<D>::new(device.snmp.authpassword.as_bytes(), session.engine_id());
+    let auth_key = AuthKey::new(localized_key);
+    session.set_auth_key(auth_key);
+
+    let localized_key =
+        LocalizedKey::<D>::new(device.snmp.privpassword.as_bytes(), session.engine_id());
+    let priv_key = P::with_localized_key(localized_key);
+    session.set_priv_key_and_salt(priv_key, salt);
+
+    // fetch metrics in this loop
     loop {
         let start_time = Instant::now();
 
@@ -99,11 +172,12 @@ pub fn collect_device(
             debug!("collect_device({}) fetch_table start", device_name);
 
             // request snmp data
-            let table_names = snmp_fetch_table(&device.snmp, vec![collect_key.clone()], timeout)?;
+            let table_names =
+                snmp_fetch_table(vec![collect_key.clone()], &mut client, &mut session)?;
 
             for collect_value in collect_values {
                 let table_values =
-                    snmp_fetch_table(&device.snmp, vec![collect_value.clone()], timeout)?;
+                    snmp_fetch_table(vec![collect_value.clone()], &mut client, &mut session)?;
 
                 debug!("collect_device({}) fetch_table done", device_name);
 
@@ -157,9 +231,9 @@ pub fn collect_device(
 
                     // request binds
                     let hpe_comware_snmp_data = snmp_fetch_var_binds(
-                        &device.snmp,
                         hpe_comware_workaround_value_var_binds,
-                        timeout,
+                        &mut client,
+                        &mut session,
                     )?;
                     for (name_bind, (table_instant, table_bind)) in hpe_comware_workaround_var_binds
                         .iter()
