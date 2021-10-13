@@ -1,3 +1,5 @@
+#![allow(clippy::iter_nth_zero)]
+
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::iter::Iterator;
@@ -72,8 +74,8 @@ fn main() {
     );
 
     let mibdirs: Vec<String> = env::var("MIBDIRS")
-        .unwrap_or("/var/lib/snmp/mibs:/usr/share/mibs".to_string())
-        .split(":")
+        .unwrap_or_else(|_| "/var/lib/snmp/mibs:/usr/share/mibs".to_string())
+        .split(':')
         .map(|s| s.to_string())
         .collect();
     debug!("mibs: MIBDIRS={:?}", mibdirs);
@@ -115,7 +117,7 @@ fn main() {
     let mib_modules = mib_modules;
 
     for oid in required_oids {
-        let oid_module = oid.split("::").nth(0).unwrap();
+        let oid_module = oid.split("::").next().unwrap();
         let oid_field = oid.split("::").nth(1).unwrap();
 
         let module = mib_modules
@@ -145,7 +147,7 @@ fn main() {
 
     info!(
         "main: started collection for {} devices",
-        config.devices.iter().count()
+        config.devices.len()
     );
 
     // set up output

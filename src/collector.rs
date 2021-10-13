@@ -105,7 +105,7 @@ pub fn collect_device_safe(
 }
 
 fn collect_device_<'a, D: 'a, P, S>(
-    device_name: &String,
+    device_name: &str,
     config: Arc<Config>,
     oid_var_bind_map: HashMap<String, VarBind>,
     channel: CrossbeamSender<SnmpStatResult>,
@@ -128,7 +128,7 @@ where
 
         let entry = collect_map
             .entry(instance_oid.clone())
-            .or_insert_with(|| HashSet::new());
+            .or_insert_with(HashSet::new);
 
         for value in &config_data_entry.values {
             entry.insert(oid_var_bind_map.get(value).unwrap().clone());
@@ -202,8 +202,8 @@ where
 
                         channel
                             .send(SnmpStatResult {
-                                device: device_name.clone(),
-                                timestamp: table_instant.clone(),
+                                device: device_name.to_string(),
+                                timestamp: table_instant,
                                 key: name_bind.clone(),
                                 value: table_bind,
                             })
@@ -216,7 +216,7 @@ where
                 }
 
                 // HPE comware workaround -> request missing oids with a GetRequest
-                if hpe_comware_workaround_var_binds.len() > 0 {
+                if hpe_comware_workaround_var_binds.is_empty() {
                     debug!("collect_device({}): hpe_comware_workaround: {} oids not found, requesting via snmpget", device_name, hpe_comware_workaround_var_binds.len());
 
                     // build request var_binds
@@ -246,8 +246,8 @@ where
                         }
                         channel
                             .send(SnmpStatResult {
-                                device: device_name.clone(),
-                                timestamp: table_instant.clone(),
+                                device: device_name.to_string(),
+                                timestamp: *table_instant,
                                 key: name_bind.clone(),
                                 value: table_bind.clone(),
                             })

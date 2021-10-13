@@ -17,7 +17,7 @@ where
     P: PrivKey<Salt = S>,
     S: Step + Copy,
 {
-    let mut request_var_binds = oid.clone();
+    let mut request_var_binds = oid;
 
     let mut result: Vec<(SystemTime, VarBind)> = vec![];
 
@@ -75,7 +75,7 @@ pub fn vec_to_var_binds(v: Vec<u64>) -> VarBind {
 
 pub fn build_snmp_mib_tree(oid_field: String, module: &mib_parser::Module) -> Vec<u64> {
     let mut tree_oid: Vec<u64> = vec![];
-    let mut oid_field = oid_field.clone();
+    let mut oid_field = oid_field;
 
     loop {
         let assignment: &mib_parser::Assignment = module
@@ -88,7 +88,7 @@ pub fn build_snmp_mib_tree(oid_field: String, module: &mib_parser::Module) -> Ve
             .value
             .as_ref()
             .unwrap()
-            .split(" ")
+            .split(' ')
             .map(|s| s.to_string())
             .collect();
         let assignment_parent_name = &assignment_split[1];
@@ -105,7 +105,7 @@ pub fn build_snmp_mib_tree(oid_field: String, module: &mib_parser::Module) -> Ve
     let mut full_oid: Vec<u64> = vec![1, 3, 6, 1, 2, 1]; // mib-2 base
     full_oid.extend(tree_oid.iter().rev());
 
-    return full_oid;
+    full_oid
 }
 
 pub fn var_numeric_value_to_string(var_value: &VarValue) -> Option<String> {
