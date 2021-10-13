@@ -216,7 +216,7 @@ where
                 }
 
                 // HPE comware workaround -> request missing oids with a GetRequest
-                if hpe_comware_workaround_var_binds.is_empty() {
+                if !hpe_comware_workaround_var_binds.is_empty() {
                     debug!("collect_device({}): hpe_comware_workaround: {} oids not found, requesting via snmpget", device_name, hpe_comware_workaround_var_binds.len());
 
                     // build request var_binds
@@ -259,12 +259,13 @@ where
         }
         let snmp_duration = start_time.elapsed();
         if snmp_duration < interval {
+            let wait = interval - snmp_duration;
             debug!(
-                "collect_device({}): snmp took {:?}",
-                device_name, snmp_duration
+                "collect_device({}): snmp took {:?}, waiting for {:?} until next interval",
+                device_name, snmp_duration, wait
             );
 
-            thread::sleep(interval);
+            thread::sleep(wait);
         } else {
             warn!(
                 "collect_device({}): snmp took {:?}, which is longer than set interval {:?}",
