@@ -138,7 +138,7 @@ fn main() {
         let oid_var_bind_map = oid_var_bind_map.clone();
         let snmp_chan_sender = snmp_chan_sender.clone();
         // one thread per device
-        thread::Builder::new()
+        thread::Builder::new().name(format!("c:{}", device_name))
             .spawn(move || {
                 collect_device_safe(device_name, config, oid_var_bind_map, snmp_chan_sender)
             })
@@ -155,7 +155,7 @@ fn main() {
     let carbon_chan_recovery_sender = carbon_chan_sender.clone(); // used to reinject carbonMetricValues on TCP errors
 
     info!("main: starting output thread");
-    thread::Builder::new()
+    thread::Builder::new().name("carbon_output".to_string())
         .spawn(move || {
             carbon_send_safe(
                 config.output.clone(),

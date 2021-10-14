@@ -1,6 +1,6 @@
 [package]
 name = "rust-snmp-collector"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Armin Fisslthaler <armin@fisslthaler.net>"]
 edition = "2018"
 license = "GPL-2.0"
