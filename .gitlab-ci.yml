@@ -1,0 +1,102 @@
+stages:
+  - build
+  - test
+
+
+.build_build_template: &build_build
+  stage: build
+  cache:
+    key: debug
+    paths:
+    - target/debug
+  script:
+    - cargo build
+
+.build_deb_template: &build_deb
+  stage: build
+  cache:
+    key: release
+    paths:
+    - target/debug
+  script:
+    - cargo install cargo-deb
+    - cargo deb
+  artifacts:
+    paths:
+      - target/debian
+
+.build_doc_template: &build_doc
+  stage: build
+  cache:
+    key: debug
+    paths:
+      - target/debug
+  script:
+    - cargo doc
+  artifacts:
+    paths:
+      - target/doc
+
+.test_test_template: &test_test
+  stage: test
+  needs: ["build:build"]
+  cache:
+    key: debug
+    paths:
+    - target
+  script:
+    - cargo test
+
+
+build:build:
+  image: rust
+  <<: *build_build
+
+
+# debian buster
+build:build:buster:
+  image: rust:buster
+  <<: *build_build
+
+build:deb:buster:
+  image: rust:buster
+  <<: *build_deb
+
+build:doc:buster:
+  image: rust:buster
+  <<: *build_doc
+
+test:test:buster:
+  image: rust:buster
+  <<: *test_test
+
+
+# debian bullseye
+build:build:bullseye:
+  image: rust:bullseye
+  <<: *build_build
+
+build:deb:bullseye:
+  image: rust:bullseye
+  <<: *build_deb
+
+build:doc:bullseye:
+  image: rust:bullseye
+  <<: *build_doc
+
+test:test:bullseye:
+  image: rust:bullseye
+  <<: *test_test
+
+
+# test:deb:
+#   stage: test
+#   needs: ["build:deb"]
+#   cache:
+#     key: release
+#     paths:
+#     - target/release
+#   script:
+#     - dpkg -i target/debian/*.deb
+#     - TODO: test installation of debian package and whether the daemon passes a config test
+
