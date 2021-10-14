@@ -2,11 +2,13 @@ use config_file::FromConfigFile;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum Output {
-    #[serde(rename = "graphite")]
-    GraphiteOutput {
+    #[serde(rename = "carbon")]
+    #[serde(alias = "graphite")]
+    CarbonOutput {
         prefix: String,
+        // change to carbon with 'graphite' alias after issue rust#54726 has been fixeed
         graphite_server: String,
         graphite_port: u16,
     },

@@ -20,7 +20,7 @@ msnmp = { git = "https://github.com/afics/modern_snmp", rev = "4e376d3546b48c2a3
 rand = "0.8.4"
 scan_dir = "0.3.3"
 serde = { version = "1.0.130", features = [ "derive" ] }
+size_format = "1.0.2"
 snmp_mp = { git = "https://github.com/afics/modern_snmp", rev = "4e376d3546b48c2a35a50bb6f64e539ba6509024" }
 snmp_usm = { git = "https://github.com/afics/modern_snmp", rev = "4e376d3546b48c2a35a50bb6f64e539ba6509024" }
-tk-carbon = "0.2.0"
 

@@ -9,9 +9,7 @@ use std::thread;
 use std::time::SystemTime;
 
 use crossbeam_channel::unbounded;
-
 use log::{debug, error, info, warn};
-
 use scan_dir::ScanDir;
 
 use snmp_mp::VarBind;
@@ -24,7 +22,7 @@ mod stat_result;
 
 use collector::collect_device_safe;
 use config::Config;
-use output::sanitize_graphite;
+use output::{carbon_send_safe, sanitize_carbon, CarbonMetricValue};
 use snmp::vec_to_var_binds;
 
 fn main() {
@@ -132,16 +130,18 @@ fn main() {
     }
 
     // set up channel where we communicate SnmpStatResults
-    let (chan_sender, chan_receiver) = unbounded();
+    let (snmp_chan_sender, snmp_chan_receiver) = unbounded();
     // start collection threads, one per device
     for (device_name, _) in config.devices.iter() {
         let device_name = device_name.clone();
         let config = config.clone();
         let oid_var_bind_map = oid_var_bind_map.clone();
-        let chan_sender = chan_sender.clone();
+        let snmp_chan_sender = snmp_chan_sender.clone();
         // one thread per device
         thread::Builder::new()
-            .spawn(move || collect_device_safe(device_name, config, oid_var_bind_map, chan_sender))
+            .spawn(move || {
+                collect_device_safe(device_name, config, oid_var_bind_map, snmp_chan_sender)
+            })
             .unwrap();
     }
 
@@ -150,18 +150,25 @@ fn main() {
         config.devices.len()
     );
 
-    // set up output
-    let output_prefix;
-    match &config.output {
-        config::Output::GraphiteOutput {
-            prefix,
-            graphite_server: _,
-            graphite_port: _,
-        } => output_prefix = prefix,
-    }
+    // start carbon_output thread
+    let (carbon_chan_sender, carbon_chan_receiver) = unbounded();
+    let carbon_chan_recovery_sender = carbon_chan_sender.clone(); // used to reinject carbonMetricValues on TCP errors
 
+    info!("main: starting output thread");
+    thread::Builder::new()
+        .spawn(move || {
+            carbon_send_safe(
+                config.output.clone(),
+                carbon_chan_recovery_sender,
+                carbon_chan_receiver,
+            )
+        })
+        .unwrap();
+
+    // stats processing format SnmpStatResults and send them as carbonMetricValue
+    info!("main: starting main processing loop");
     loop {
-        let result = chan_receiver.recv().unwrap();
+        let result = snmp_chan_receiver.recv().unwrap();
 
         // convert var_bind oid to its named string
         let result_value_name_oid = result.value.name().components().split_last().unwrap().1;
@@ -200,22 +207,27 @@ fn main() {
 
         let ts = result.timestamp;
         let key = format!(
-            "{}.{}.{}.{}",
-            sanitize_graphite(output_prefix),
-            sanitize_graphite(&result.device),
-            sanitize_graphite(&key_value.unwrap()),
+            "{}.{}.{}",
+            sanitize_carbon(&result.device),
+            sanitize_carbon(&key_value.unwrap()),
             val_name
         );
-        let value = value.unwrap();
+        let value = format!("{}", value.unwrap());
 
         debug!(
-            "result_loop(for {}): sending to graphite '{} {} {}'",
+            "result_loop(for {}): sending to carbon '{} {} {}'",
             result.device,
             ts.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),
             key,
             value
         );
 
-        // TODO: send to graphite
+        carbon_chan_sender
+            .send(CarbonMetricValue {
+                timestamp: ts,
+                metric: key.clone(),
+                value: value.clone(),
+            })
+            .unwrap();
     }
 }

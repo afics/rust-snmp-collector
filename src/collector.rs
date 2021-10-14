@@ -99,7 +99,6 @@ pub fn collect_device_safe(
                 "collect_device_safe({}): backoff {:?} done, retrying...",
                 device_name, backoff
             );
-            continue;
         }
     }
 }
