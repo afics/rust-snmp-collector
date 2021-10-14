@@ -1,12 +1,11 @@
 [package]
 name = "rust-snmp-collector"
-version = "0.1.0"
-edition = "2018"
-
+version = "0.2.0"
 authors = ["Armin Fisslthaler <armin@fisslthaler.net>"]
+edition = "2018"
 license = "GPL-2.0"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+readme = "README.md"
+description = "Request information via SNMP and send it to a metrics database"
 
 [dependencies]
 clap = "2.33.3"
@@ -23,4 +22,23 @@ serde = { version = "1.0.130", features = [ "derive" ] }
 size_format = "1.0.2"
 snmp_mp = { git = "https://github.com/afics/modern_snmp", rev = "4e376d3546b48c2a35a50bb6f64e539ba6509024" }
 snmp_usm = { git = "https://github.com/afics/modern_snmp", rev = "4e376d3546b48c2a35a50bb6f64e539ba6509024" }
+
+[package.metadata.deb]
+extended-description = "Successor to pysnmpcollector. Gets information from hosts through SNMP and sends it to a Graphite/Carbon output"
+section = "utility"
+priority = "optional"
+maintainer-scripts = "debian/"
+systemd-units = { enable = false }
+assets = [
+    ["debian/environment", "etc/rust-snmp-collector/environment", "644"],
+    ["example/simple-example.yaml", "etc/rust-snmp-collector/config/example.conf-disabled", "644"],
+    ["target/release/rust-snmp-collector", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/rust-snmp-collector/README", "644"],
+    ["debian/rust-snmp-collector@.service", "lib/systemd/system/rust-snmp-collector@.service", "644"]
+]
+
+conf-files = [
+  "/etc/rust-snmp-collector/environment",
+  "/etc/rust-snmp-collector/example.conf-disabled",
+]
 

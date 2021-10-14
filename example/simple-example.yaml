@@ -1,0 +1,46 @@
+output:
+  graphite:
+    prefix: rust-snmp-collector
+    graphite_server: 127.0.0.1
+    graphite_port: 2013
+
+data:
+  ifmib_if_highspeed:
+    table: true
+    instance: IF-MIB::ifName
+    values: ["IF-MIB::ifHighSpeed"]
+
+  ifmib_if_octets64:
+    table: true
+    instance: IF-MIB::ifName
+    values: ["IF-MIB::ifHCInOctets", "IF-MIB::ifHCOutOctets"]
+
+  ifmib_if_packets64:
+    table: true
+    instance: IF-MIB::ifName
+    values: ["IF-MIB::ifHCInUcastPkts", "IF-MIB::ifHCOutUcastPkts"]
+
+  ifmib_if_octets32:
+    table: true
+    instance: IF-MIB::ifName
+    values: ["IF-MIB::ifInOctets", "IF-MIB::ifOutOctets"]
+
+  ifmib_if_errors32:
+    table: true
+    instance: IF-MIB::ifName
+    values: ["IF-MIB::ifInErrors", "IF-MIB::ifOutErrors"]
+
+devices:
+  poetschfw001:
+    snmp:
+      host: 192.0.2.14
+      version: 3
+      secname: snmp_user
+      authprotocol: SHA
+      authpassword: verysecret
+      privprotocol: AES
+      privpassword: muchsecret
+      timeout: 10
+    collect: [ifmib_if_octets64, ifmib_if_packets64, ifmib_if_errors32, ifmib_if_highspeed]
+    interval: 20
+

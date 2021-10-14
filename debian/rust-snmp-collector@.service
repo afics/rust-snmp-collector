@@ -1,0 +1,19 @@
+[Unit]
+Description=rust-snmp-collector for %i.conf
+Wants=network-online.target
+After=network-online.target
+
+StartLimitInterval=0
+
+[Service]
+Type=simple
+DynamicUser=yes
+EnvironmentFile=/etc/rust-snmp-collector/environment
+ExecStart=/usr/bin/rust-snmp-collector /etc/rust-snmp-collector/config/%i.conf
+
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+
