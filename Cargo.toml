@@ -31,7 +31,7 @@ maintainer-scripts = "debian/"
 systemd-units = { enable = false }
 assets = [
     ["debian/environment", "etc/rust-snmp-collector/environment", "644"],
-    ["example/simple-example.yaml", "etc/rust-snmp-collector/config/example.conf-disabled", "644"],
+    ["example/simple-example.yaml", "etc/rust-snmp-collector/config/example.yaml-disabled", "644"],
     ["target/release/rust-snmp-collector", "usr/bin/", "755"],
     ["README.md", "usr/share/doc/rust-snmp-collector/README", "644"],
     ["debian/rust-snmp-collector@.service", "lib/systemd/system/rust-snmp-collector@.service", "644"]
@@ -39,6 +39,6 @@ assets = [
 
 conf-files = [
   "/etc/rust-snmp-collector/environment",
-  "/etc/rust-snmp-collector/example.conf-disabled",
+  "/etc/rust-snmp-collector/example.yaml-disabled",
 ]
 
