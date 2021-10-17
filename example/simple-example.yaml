@@ -31,7 +31,7 @@ data:
     values: ["IF-MIB::ifInErrors", "IF-MIB::ifOutErrors"]
 
 devices:
-  poetschfw001:
+  example-device001:
     snmp:
       host: 192.0.2.14
       version: 3
