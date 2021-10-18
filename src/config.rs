@@ -1,3 +1,4 @@
+use anyhow::Error;
 use config_file::FromConfigFile;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -79,6 +80,6 @@ pub struct Config {
     pub devices: HashMap<String, DeviceEntry>,
 }
 
-pub fn from_file(path: &str) -> Config {
-    Config::from_config_file(path).unwrap()
+pub fn from_file(path: &str) -> Result<Config, Error> {
+    Ok(Config::from_config_file(path)?)
 }

@@ -26,7 +26,7 @@ mod stat_result;
 use cli::{Command, Opts};
 use collector::collect_device_safe;
 use config::Config;
-use output::{carbon_send_safe, sanitize_carbon, CarbonMetricValue};
+use output::{carbon_send_safe, CarbonMetricValue};
 use snmp::vec_to_var_binds;
 
 fn main() -> Result<(), Error> {
@@ -44,7 +44,7 @@ fn main() -> Result<(), Error> {
     let config_file_path = cli.config;
 
     debug!("config(file={}): loading from file", config_file_path);
-    let config: Arc<Config> = Arc::new(config::from_file(&config_file_path));
+    let config: Arc<Config> = Arc::new(config::from_file(&config_file_path)?);
 
     debug!("config(file={}): validating", config_file_path);
     // validated configuration
@@ -161,8 +161,29 @@ fn main() -> Result<(), Error> {
         return Ok(());
     }
 
+    // TODO: generate this with the same code that is used in collector::collect_device
+    if cli.command == Command::ShowOutputKeys {
+        for (device_name, device) in &config.devices {
+            for collector in &device.collect {
+                let collector_def = config.data.get(collector).unwrap();
+                for collector_value in &collector_def.values {
+                    // let collector_value.replace("::", ".");
+
+                    let key = output::format_key(
+                        device_name,
+                        &format!("<{}>", collector_def.instance),
+                        &collector_value.split("::").nth(1).unwrap().to_string(),
+                    );
+                    println!("{}", key);
+                }
+            }
+        }
+        return Ok(());
+    }
+
     // set up channel where we communicate SnmpStatResults
     let (snmp_chan_sender, snmp_chan_receiver) = unbounded();
+
     // start collection threads, one per device
     for (device_name, _) in config.devices.iter() {
         let device_name = device_name.clone();
@@ -216,7 +237,7 @@ fn main() -> Result<(), Error> {
                 }
             })
             .unwrap();
-        let val_name = full_val_name.split("::").nth(1).unwrap();
+        let val_name = full_val_name.split("::").nth(1).unwrap().to_string();
 
         // example: IF-MIB::ifName -> Ethernet1/1
         let key_value = snmp::var_numeric_value_to_string(result.key.value());
@@ -239,13 +260,11 @@ fn main() -> Result<(), Error> {
             continue;
         };
 
+        let key_value = key_value.unwrap();
+
         let ts = result.timestamp;
-        let key = format!(
-            "{}.{}.{}",
-            sanitize_carbon(&result.device),
-            sanitize_carbon(&key_value.unwrap()),
-            val_name
-        );
+        let key = output::format_key(&result.device, &key_value, &val_name);
+
         let value = format!("{}", value.unwrap());
 
         debug!(

@@ -78,16 +78,11 @@ pub fn carbon_send(
     loop {
         let metricval = channel_receiver.recv().unwrap();
 
-        let buf = format!(
-            "{}.{} {} {}",
-            prefix,
-            metricval.metric,
-            metricval.value,
-            metricval
-                .timestamp
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_secs()
+        let buf = format_carbon(
+            &prefix,
+            &metricval.metric,
+            &metricval.value,
+            &metricval.timestamp,
         );
 
         debug!("carbon_send: sending '{}'", buf);
@@ -107,4 +102,31 @@ pub fn carbon_send(
 
 pub fn sanitize_carbon(s: &str) -> String {
     s.replace("-", "_").replace(".", "__").replace("/", "_")
+}
+
+pub fn format_key(device_name: &String, variable_part: &String, metric_name: &String) -> String {
+    format!(
+        "{}.{}.{}",
+        sanitize_carbon(device_name),
+        sanitize_carbon(variable_part),
+        metric_name
+    )
+}
+
+pub fn format_carbon(
+    prefix: &String,
+    metric: &String,
+    value: &String,
+    timestamp: &SystemTime,
+) -> String {
+    format!(
+        "{}.{} {} {}",
+        prefix,
+        metric,
+        value,
+        timestamp
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+    )
 }

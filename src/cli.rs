@@ -8,6 +8,8 @@ pub enum Command {
     MibTest,
     /// Performs both config-test and mib-test
     PreflightCheck,
+    /// Display output keys
+    ShowOutputKeys,
     /// Do the thing!
     Run,
 }
