@@ -8,7 +8,7 @@ use crossbeam_channel::Sender as CrossbeamSender;
 
 use log::{debug, error, info, warn};
 
-use failure::Error;
+use anyhow::Error;
 use rand::Rng;
 
 use msnmp::session::{Session, Step};

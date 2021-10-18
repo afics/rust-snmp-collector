@@ -1,6 +1,6 @@
 [package]
 name = "rust-snmp-collector"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Armin Fisslthaler <armin@fisslthaler.net>"]
 edition = "2018"
 license = "GPL-2.0"
@@ -8,20 +8,20 @@ readme = "README.md"
 description = "Request information via SNMP and send it to a metrics database"
 
 [dependencies]
-clap = "2.33.3"
+anyhow = "1.0"
+clap = "3.0.0-beta.4"
 config-file = { version = "0.2.1", features = [ "yaml" ] }
 crossbeam-channel = "0.5.1"
 env_logger = "0.9.0"
-failure = "0.1.8"
 log = "0.4.14"
-mib_parser = { git = "https://github.com/afics/mib-parser", rev = "0778cc5b842ab9f43e74c2d2eaf41b215b76eda9" }
-msnmp = { git = "https://github.com/afics/modern_snmp", rev = "4e376d3546b48c2a35a50bb6f64e539ba6509024" }
+mib_parser = { git = "https://github.com/afics/mib-parser", rev = "299a60a5d35fbfa4f8b9f94fd58874e9e9c3b2e8" }
 rand = "0.8.4"
 scan_dir = "0.3.3"
 serde = { version = "1.0.130", features = [ "derive" ] }
 size_format = "1.0.2"
-snmp_mp = { git = "https://github.com/afics/modern_snmp", rev = "4e376d3546b48c2a35a50bb6f64e539ba6509024" }
-snmp_usm = { git = "https://github.com/afics/modern_snmp", rev = "4e376d3546b48c2a35a50bb6f64e539ba6509024" }
+msnmp = { git = "https://github.com/afics/modern_snmp", rev = "84cbae0ef8d18354a4d9a5b8ca270c3536d02555" }
+snmp_mp = { git = "https://github.com/afics/modern_snmp", rev = "84cbae0ef8d18354a4d9a5b8ca270c3536d02555" }
+snmp_usm = { git = "https://github.com/afics/modern_snmp", rev = "84cbae0ef8d18354a4d9a5b8ca270c3536d02555" }
 
 [package.metadata.deb]
 extended-description = "Successor to pysnmpcollector. Gets information from hosts through SNMP and sends it to a Graphite/Carbon output"
@@ -34,7 +34,8 @@ assets = [
     ["example/simple-example.yaml", "etc/rust-snmp-collector/config/example.yaml-disabled", "644"],
     ["target/release/rust-snmp-collector", "usr/bin/", "755"],
     ["README.md", "usr/share/doc/rust-snmp-collector/README", "644"],
-    ["debian/rust-snmp-collector@.service", "lib/systemd/system/rust-snmp-collector@.service", "644"]
+    ["debian/rust-snmp-collector@.service", "lib/systemd/system/rust-snmp-collector@.service", "644"],
+    ["debian/rust-snmp-collector.service", "lib/systemd/system/rust-snmp-collector.service", "644"]
 ]
 
 conf-files = [

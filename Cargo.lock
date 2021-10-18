@@ -3,21 +3,6 @@
 version = 3
 
 [[package]]
-name = "addr2line"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e61f2b7f93d2c7d2b08263acaa4a363b3e276806c68af6134c44f523bf1aacd"
-dependencies = [
- "gimli",
-]
-
-[[package]]
-name = "adler"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
-
-[[package]]
 name = "aes"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -48,6 +33,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61604a8f862e1d5c3229fdd78f8b02c68dcf73a4c4b05fd636d12240aaa242c1"
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -63,21 +54,6 @@ name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
-
-[[package]]
-name = "backtrace"
-version = "0.3.61"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7a905d892734eea339e896738c14b9afce22b5318f64b951e70bf3844419b01"
-dependencies = [
- "addr2line",
- "cc",
- "cfg-if",
- "libc",
- "miniz_oxide",
- "object",
- "rustc-demangle",
-]
 
 [[package]]
 name = "bitflags"
@@ -142,12 +118,6 @@ name = "byteorder"
 version = "1.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
-
-[[package]]
-name = "cc"
-version = "1.0.70"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d26a6ce4b6a484fa3edb70f7efa6fc430fd2b87285fe8b84304fd0936faa0dc0"
 
 [[package]]
 name = "cfb-mode"
@@ -338,37 +308,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "exitfailure"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ff5bd832af37f366c6c194d813a11cd90ac484f124f079294f28e357ae40515"
-dependencies = [
- "failure",
-]
-
-[[package]]
-name = "failure"
-version = "0.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d32e9bd16cc02eae7db7ef620b392808b89f6a5e16bb3497d159c6b92a0f4f86"
-dependencies = [
- "backtrace",
- "failure_derive",
-]
-
-[[package]]
-name = "failure_derive"
-version = "0.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa4da3c766cd7a0db8242e326e9e4e081edd567072893ed320008189715366a4"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
- "synstructure",
-]
-
-[[package]]
 name = "fake-simd"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -403,12 +342,6 @@ dependencies = [
  "libc",
  "wasi",
 ]
-
-[[package]]
-name = "gimli"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0a01e0497841a3b2db4f8afa483cce65f7e96a3498bd6c541734792aeac8fe7"
 
 [[package]]
 name = "hashbrown"
@@ -537,7 +470,7 @@ checksum = "308cc39be01b73d0d18f82a0e7b2a3df85245f84af96fdddc5d202d27e47b86a"
 [[package]]
 name = "mib_parser"
 version = "0.1.0"
-source = "git+https://github.com/afics/mib-parser?rev=0778cc5b842ab9f43e74c2d2eaf41b215b76eda9#0778cc5b842ab9f43e74c2d2eaf41b215b76eda9"
+source = "git+https://github.com/afics/mib-parser?rev=299a60a5d35fbfa4f8b9f94fd58874e9e9c3b2e8#299a60a5d35fbfa4f8b9f94fd58874e9e9c3b2e8"
 dependencies = [
  "clap 3.0.0-beta.4",
  "env_logger 0.7.1",
@@ -554,22 +487,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "miniz_oxide"
-version = "0.4.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a92518e98c078586bc6c934028adcca4c92a53d6a958196de835170a01d84e4b"
-dependencies = [
- "adler",
- "autocfg",
-]
-
-[[package]]
 name = "msnmp"
 version = "0.1.0"
-source = "git+https://github.com/afics/modern_snmp?rev=4e376d3546b48c2a35a50bb6f64e539ba6509024#4e376d3546b48c2a35a50bb6f64e539ba6509024"
+source = "git+https://github.com/afics/modern_snmp?rev=84cbae0ef8d18354a4d9a5b8ca270c3536d02555#84cbae0ef8d18354a4d9a5b8ca270c3536d02555"
 dependencies = [
- "exitfailure",
- "failure",
+ "anyhow",
  "rand",
  "snmp_mp",
  "snmp_usm",
@@ -638,15 +560,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a64b1ec5cda2586e284722486d802acf1f7dbdc623e2bfc57e65ca1cd099290"
 dependencies = [
  "autocfg",
-]
-
-[[package]]
-name = "object"
-version = "0.26.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39f37e50073ccad23b6d09bcb5b263f4e76d3bb6038e4a3c08e52162ffa8abc2"
-dependencies = [
- "memchr",
 ]
 
 [[package]]
@@ -847,11 +760,11 @@ checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
 name = "rust-snmp-collector"
 version = "0.2.1"
 dependencies = [
- "clap 2.33.3",
+ "anyhow",
+ "clap 3.0.0-beta.4",
  "config-file",
  "crossbeam-channel",
  "env_logger 0.9.0",
- "failure",
  "log",
  "mib_parser",
  "msnmp",
@@ -862,12 +775,6 @@ dependencies = [
  "snmp_mp",
  "snmp_usm",
 ]
-
-[[package]]
-name = "rustc-demangle"
-version = "0.1.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ef03e0a2b150c7a90d01faf6254c9c48a41e95fb2a8c2ac1c6f0d2b9aefc342"
 
 [[package]]
 name = "same-file"
@@ -957,7 +864,7 @@ dependencies = [
 [[package]]
 name = "snmp_mp"
 version = "0.1.0"
-source = "git+https://github.com/afics/modern_snmp?rev=4e376d3546b48c2a35a50bb6f64e539ba6509024#4e376d3546b48c2a35a50bb6f64e539ba6509024"
+source = "git+https://github.com/afics/modern_snmp?rev=84cbae0ef8d18354a4d9a5b8ca270c3536d02555#84cbae0ef8d18354a4d9a5b8ca270c3536d02555"
 dependencies = [
  "bitflags",
  "yasna",
@@ -966,7 +873,7 @@ dependencies = [
 [[package]]
 name = "snmp_usm"
 version = "0.2.0"
-source = "git+https://github.com/afics/modern_snmp?rev=4e376d3546b48c2a35a50bb6f64e539ba6509024#4e376d3546b48c2a35a50bb6f64e539ba6509024"
+source = "git+https://github.com/afics/modern_snmp?rev=84cbae0ef8d18354a4d9a5b8ca270c3536d02555#84cbae0ef8d18354a4d9a5b8ca270c3536d02555"
 dependencies = [
  "aes",
  "block-modes",
@@ -1028,18 +935,6 @@ checksum = "d010a1623fbd906d51d650a9916aaefc05ffa0e4053ff7fe601167f3e715d194"
 dependencies = [
  "proc-macro2",
  "quote",
- "unicode-xid",
-]
-
-[[package]]
-name = "synstructure"
-version = "0.12.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "474aaa926faa1603c40b7885a9eaea29b444d1cb2850cb7c0e37bb1a4182f4fa"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
  "unicode-xid",
 ]
 

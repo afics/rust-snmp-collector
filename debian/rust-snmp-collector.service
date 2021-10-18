@@ -1,5 +1,5 @@
 [Unit]
-Description=rust-snmp-collector for %i.yaml
+Description=rust-snmp-collector all configs combineed
 Wants=network-online.target
 After=network-online.target
 
@@ -7,7 +7,7 @@ After=network-online.target
 Type=simple
 DynamicUser=yes
 EnvironmentFile=/etc/rust-snmp-collector/environment
-ExecStart=/usr/bin/rust-snmp-collector -c /etc/rust-snmp-collector/config/%i.yaml run
+ExecStart=/usr/bin/rust-snmp-collector run
 
 Restart=always
 RestartSec=10

@@ -1,11 +1,13 @@
-use failure::Error;
+use anyhow::{format_err, Error};
+use log::trace;
+use std::time::SystemTime;
+
 use msnmp::msg_factory;
 use msnmp::request::get_var_binds;
 use msnmp::session::{Session, Step};
 use msnmp::Client;
 use snmp_mp::{ObjectIdent, PduType, VarBind, VarValue};
 use snmp_usm::{Digest, PrivKey};
-use std::time::SystemTime;
 
 pub fn snmp_bulkwalk<D, P, S>(
     oid: Vec<VarBind>,
@@ -73,39 +75,94 @@ pub fn vec_to_var_binds(v: Vec<u64>) -> VarBind {
     VarBind::new(ObjectIdent::new(v))
 }
 
-pub fn build_snmp_mib_tree(oid_field: String, module: &mib_parser::Module) -> Vec<u64> {
+fn find_module<'a>(
+    module: &String,
+    mibs: &'a Vec<mib_parser::MibInfo>,
+) -> Option<&'a mib_parser::Module> {
+    mibs.iter()
+        .filter(|v| {
+            v.modules
+                .iter()
+                .filter(|m| m.name == module.as_ref())
+                .count()
+                > 0
+        })
+        .nth(0)?
+        .modules
+        .iter()
+        .filter(|m| m.name == module.as_ref())
+        .nth(0)
+}
+
+pub fn build_snmp_mib_tree(
+    oid: &String,
+    mibs: &Vec<mib_parser::MibInfo>,
+) -> Result<Vec<u64>, Error> {
     let mut tree_oid: Vec<u64> = vec![];
-    let mut oid_field = oid_field;
+
+    let oid_module = oid.split("::").nth(0).unwrap().to_string();
+    let oid_field = oid.split("::").nth(1).unwrap().to_string();
+
+    let module = find_module(&oid_module, &mibs);
+
+    if module.is_none() {
+        return Err(format_err!(
+            "Could not resolve module {} for {} which is required",
+            oid,
+            oid_module
+        ));
+    }
+    let module = module.unwrap();
+
+    let mut oid_field = oid_field.clone();
 
     loop {
-        let assignment: &mib_parser::Assignment = module
+        trace!(
+            "build_snmp_mib_tree(oid={}, module=...): current_field = {}",
+            oid,
+            oid_field
+        );
+
+        if let Some(assignment) = module
             .assignments
             .iter()
             .filter(|v| v.name == oid_field)
             .nth(0)
-            .unwrap();
-        let assignment_split: Vec<String> = assignment
-            .value
-            .as_ref()
-            .unwrap()
-            .split(' ')
-            .map(|s| s.to_string())
-            .collect();
-        let assignment_parent_name = &assignment_split[1];
-        let assignment_parent_oid = &assignment_split[2];
+        {
+            let assignment_split: Vec<String> = assignment
+                .value
+                .as_ref()
+                .unwrap()
+                .split(' ')
+                .map(|s| s.to_string())
+                .collect();
 
-        tree_oid.push(assignment_parent_oid.parse().unwrap());
+            let assignment_parent_name = &assignment_split[1];
+            let assignment_parent_oid = &assignment_split[2];
 
-        oid_field = assignment_parent_name.to_string();
+            tree_oid.push(assignment_parent_oid.parse().unwrap());
 
-        if assignment_parent_name == "mib-2" {
-            break; // we reached mib-2 base
+            oid_field = assignment_parent_name.to_string();
+        } else if let Some(import) = module.imports.iter().filter(|v| v.name == oid_field).nth(0) {
+            let mut upper_oid =
+                build_snmp_mib_tree(&format!("{}::{}", import.from, import.name), mibs)?;
+            upper_oid.extend(tree_oid.iter().rev());
+            return Ok(upper_oid);
+        } else {
+            if oid_field == "iso" {
+                // define in Rec. ITU-T X.660 | ISO/IEC 9834-1
+                tree_oid.push(1);
+                tree_oid.reverse();
+                return Ok(tree_oid);
+            }
+
+            return Err(format_err!(
+                "build_snmp_mib_tree: Could not resolve {} in {}",
+                oid_field,
+                module.name
+            ));
         }
     }
-    let mut full_oid: Vec<u64> = vec![1, 3, 6, 1, 2, 1]; // mib-2 base
-    full_oid.extend(tree_oid.iter().rev());
-
-    full_oid
 }
 
 pub fn var_numeric_value_to_string(var_value: &VarValue) -> Option<String> {

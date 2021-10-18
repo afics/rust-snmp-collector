@@ -4,8 +4,8 @@ use std::thread;
 use std::time::Duration;
 use std::time::SystemTime;
 
+use anyhow::Error;
 use crossbeam_channel::{Receiver, Sender};
-use failure::Error;
 use log::{debug, info, warn};
 use size_format::SizeFormatterSI;
 
