@@ -183,6 +183,7 @@ pub fn var_bind_to_i128(v: VarBind) -> Option<i128> {
         snmp_mp::VarValue::UnsignedInt(value) => Some(*value as i128),
         snmp_mp::VarValue::BigCounter(value) => Some((*value).into()),
         snmp_mp::VarValue::Int(value) => Some((*value).into()),
+        snmp_mp::VarValue::TimeTicks(value) => Some((*value).into()),
         _ => {
             return None;
         }
