@@ -250,9 +250,9 @@ fn main() -> Result<(), Error> {
         }
 
         // actual metric value
-        let value = snmp::var_bind_to_u64(result.value);
+        let value = snmp::var_bind_to_i128(result.value);
         if value == None {
-            debug!(
+            warn!(
                 "result_loop(for {}): can not handle snmp result for {}",
                 result.device, val_name
             );

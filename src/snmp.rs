@@ -177,11 +177,14 @@ pub fn var_numeric_value_to_string(var_value: &VarValue) -> Option<String> {
     }
 }
 
-pub fn var_bind_to_u64(v: VarBind) -> Option<u64> {
+pub fn var_bind_to_i128(v: VarBind) -> Option<i128> {
     match v.value() {
-        snmp_mp::VarValue::Counter(value) => Some(*value as u64),
-        snmp_mp::VarValue::UnsignedInt(value) => Some(*value as u64),
-        snmp_mp::VarValue::BigCounter(value) => Some(*value),
-        _ => None,
+        snmp_mp::VarValue::Counter(value) => Some(*value as i128),
+        snmp_mp::VarValue::UnsignedInt(value) => Some(*value as i128),
+        snmp_mp::VarValue::BigCounter(value) => Some((*value).into()),
+        snmp_mp::VarValue::Int(value) => Some((*value).into()),
+        _ => {
+            return None;
+        }
     }
 }
