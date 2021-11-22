@@ -83,14 +83,14 @@ fn find_module<'a>(
         .filter(|v| {
             v.modules
                 .iter()
-                .filter(|m| m.name == module.as_ref())
+                .filter(|m| module == &m.name)
                 .count()
                 > 0
         })
         .nth(0)?
         .modules
         .iter()
-        .filter(|m| m.name == module.as_ref())
+        .filter(|m| module == &m.name)
         .nth(0)
 }
 

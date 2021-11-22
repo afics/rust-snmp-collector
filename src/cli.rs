@@ -1,6 +1,6 @@
-use clap::{crate_authors, crate_version, AppSettings, Clap};
+use clap::{crate_authors, crate_version, AppSettings, Parser};
 
-#[derive(Clap, Debug, PartialEq)]
+#[derive(Parser, Debug, PartialEq)]
 pub enum Command {
     /// Verifies if the configuration can be parsed without errors
     ConfigTest,
@@ -14,11 +14,10 @@ pub enum Command {
     Run,
 }
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 #[clap(
     version = crate_version!(),
     author = crate_authors!(", "),
-    global_setting = AppSettings::ColoredHelp,
     global_setting = AppSettings::InferSubcommands,
     global_setting = AppSettings::PropagateVersion,
 )]

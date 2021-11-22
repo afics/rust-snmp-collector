@@ -9,7 +9,7 @@ use std::thread;
 use std::time::SystemTime;
 
 use anyhow::{bail, Error, Result};
-use clap::Clap;
+use clap::Parser;
 use crossbeam_channel::unbounded;
 use log::{debug, info, trace, warn};
 use scan_dir::ScanDir;
