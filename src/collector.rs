@@ -90,9 +90,16 @@ pub fn collect_device_safe(
             channel.clone(),
         );
         if let Err(error) = &collect {
+            // condense error
+            let error_debug_str = format!("{:#?}", error)
+                .split("\n")
+                .map(|s| s.trim_matches(' '))
+                .collect::<Vec<&str>>()
+                .join(" ");
+
             warn!(
-                "collect_device_safe({}): {:#?}; backing off for {:?}",
-                device_name, error, backoff
+                "collect_device_safe({}): error: {}; backing off for {:?}",
+                device_name, error_debug_str, backoff
             );
             thread::sleep(backoff);
             info!(
