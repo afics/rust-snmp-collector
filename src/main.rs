@@ -267,7 +267,7 @@ fn main() -> Result<(), Error> {
 
         let value = format!("{}", value.unwrap());
 
-        debug!(
+        trace!(
             "result_loop(for {}): sending to carbon '{} {} {}'",
             result.device,
             ts.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),

@@ -80,13 +80,7 @@ fn find_module<'a>(
     mibs: &'a Vec<mib_parser::MibInfo>,
 ) -> Option<&'a mib_parser::Module> {
     mibs.iter()
-        .filter(|v| {
-            v.modules
-                .iter()
-                .filter(|m| module == &m.name)
-                .count()
-                > 0
-        })
+        .filter(|v| v.modules.iter().filter(|m| module == &m.name).count() > 0)
         .nth(0)?
         .modules
         .iter()

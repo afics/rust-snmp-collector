@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use crossbeam_channel::Sender as CrossbeamSender;
 
-use log::{debug, error, info, warn};
+use log::{debug, error, info, trace, warn};
 
 use anyhow::Error;
 use rand::Rng;
@@ -91,7 +91,7 @@ pub fn collect_device_safe(
         );
         if let Err(error) = &collect {
             warn!(
-                "collect_device_safe({}): {:?}; backing off for {:?}",
+                "collect_device_safe({}): {:#?}; backing off for {:?}",
                 device_name, error, backoff
             );
             thread::sleep(backoff);
@@ -168,17 +168,36 @@ where
 
         for (collect_key, collect_values) in &collect_map {
             let mut hpe_comware_workaround_var_binds: Vec<VarBind> = vec![];
-            debug!("collect_device({}) fetch_table start", device_name);
+            debug!(
+                "collect_device({}) fetch_table({:?}) start",
+                device_name,
+                collect_key.name().components()
+            );
 
             // request snmp data
             let table_names =
                 snmp_fetch_table(vec![collect_key.clone()], &mut client, &mut session)?;
 
+            debug!(
+                "collect_device({}) fetch_table({:?}) done",
+                device_name,
+                collect_key.name().components()
+            );
+
             for collect_value in collect_values {
+                debug!(
+                    "collect_device({}) fetch_table({:?}) start",
+                    device_name,
+                    collect_value.name().components()
+                );
                 let table_values =
                     snmp_fetch_table(vec![collect_value.clone()], &mut client, &mut session)?;
 
-                debug!("collect_device({}) fetch_table done", device_name);
+                debug!(
+                    "collect_device({}) fetch_table({:?}) done",
+                    device_name,
+                    collect_value.name().components()
+                );
 
                 // zip key value tuples from the name and value tables
                 for (_, name_bind) in &table_names {
@@ -209,14 +228,14 @@ where
                             .unwrap();
                     } else {
                         // we did not, try requesting it through a simple get_request
-                        debug!("collect_device({}): hpe_comware_workaround: {} = {} not found in value table, triggering workaround", device_name, name_bind.name(), name_string);
+                        trace!("collect_device({}): hpe_comware_workaround: {} = {} not found in value table, triggering workaround", device_name, name_bind.name(), name_string);
                         hpe_comware_workaround_var_binds.push(name_bind.clone());
                     }
                 }
 
                 // HPE comware workaround -> request missing oids with a GetRequest
                 if !hpe_comware_workaround_var_binds.is_empty() {
-                    debug!("collect_device({}): hpe_comware_workaround: {} oids not found, requesting via snmpget", device_name, hpe_comware_workaround_var_binds.len());
+                    trace!("collect_device({}): hpe_comware_workaround: {} oids not found, requesting via snmpget", device_name, hpe_comware_workaround_var_binds.len());
 
                     // build request var_binds
                     let mut hpe_comware_workaround_value_var_binds: Vec<VarBind> = vec![];
@@ -240,7 +259,7 @@ where
                     {
                         let mut table_bind = table_bind.clone();
                         if table_bind.value() == &VarValue::NoSuchInstance {
-                            debug!("collect_device({}): hpe_comware_workaround: {} = {} ->  NoSuchInstance for value, assuming 0_64", device_name, name_bind.name(), msnmp::format_var_bind::format_var_value(name_bind.value()));
+                            trace!("collect_device({}): hpe_comware_workaround: {} = {} ->  NoSuchInstance for value, assuming 0_64", device_name, name_bind.name(), msnmp::format_var_bind::format_var_value(name_bind.value()));
                             table_bind.set_value(VarValue::BigCounter(0));
                         }
                         channel

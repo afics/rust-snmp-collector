@@ -6,7 +6,7 @@ use std::time::SystemTime;
 
 use anyhow::Error;
 use crossbeam_channel::{Receiver, Sender};
-use log::{debug, info, warn};
+use log::{debug, info, trace, warn};
 use size_format::SizeFormatterSI;
 
 use crate::config::Output;
@@ -85,7 +85,7 @@ pub fn carbon_send(
             &metricval.timestamp,
         );
 
-        debug!("carbon_send: sending '{}'", buf);
+        trace!("carbon_send: sending '{}'", buf);
 
         let write = stream.write(&[buf.as_bytes(), &[b'\n']].concat());
         if let Err(error) = write {
