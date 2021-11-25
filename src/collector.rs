@@ -240,37 +240,54 @@ where
                     // build request var_binds
                     let mut hpe_comware_workaround_value_var_binds: Vec<VarBind> = vec![];
                     for name_bind in &hpe_comware_workaround_var_binds {
-                        let mut request_oid =
-                            table_values.first().unwrap().1.name().components().to_vec();
-                        *request_oid.last_mut().unwrap() =
-                            *name_bind.name().components().last().unwrap(); // oid of missing element
-                        hpe_comware_workaround_value_var_binds.push(vec_to_var_binds(request_oid));
+                        // get base oid from another (not missing) table value
+                        // this may fail if the requested table is empty, this case is logged
+                        if let Some(first_table_value) = table_values.first() {
+                            let mut request_oid = first_table_value.1.name().components().to_vec();
+
+                            // replace last element in oid with the one that's been indicated as
+                            // missing in hpe_comware_workaround_var_binds
+                            *request_oid.last_mut().unwrap() =
+                                *name_bind.name().components().last().unwrap(); // oid of missing element
+
+                            hpe_comware_workaround_value_var_binds
+                                .push(vec_to_var_binds(request_oid));
+                        } else {
+                            debug!("collect_device({}): hpe_comware_workaround: table_value.first() is None, possibly an empty table was received from the device", device_name);
+                        }
                     }
 
-                    // request binds
-                    let hpe_comware_snmp_data = snmp_fetch_var_binds(
-                        hpe_comware_workaround_value_var_binds,
-                        &mut client,
-                        &mut session,
-                    )?;
-                    for (name_bind, (table_instant, table_bind)) in hpe_comware_workaround_var_binds
-                        .iter()
-                        .zip(hpe_comware_snmp_data.iter())
-                    {
-                        let mut table_bind = table_bind.clone();
-                        if table_bind.value() == &VarValue::NoSuchInstance {
-                            trace!("collect_device({}): hpe_comware_workaround: {} = {} ->  NoSuchInstance for value, assuming 0_64", device_name, name_bind.name(), msnmp::format_var_bind::format_var_value(name_bind.value()));
-                            table_bind.set_value(VarValue::BigCounter(0));
+                    // only execute if a non empty table with missing values has been detected
+                    // while building the request var_binds
+                    if !hpe_comware_workaround_value_var_binds.is_empty() {
+                        // request binds
+                        let hpe_comware_snmp_data = snmp_fetch_var_binds(
+                            hpe_comware_workaround_value_var_binds,
+                            &mut client,
+                            &mut session,
+                        )?;
+                        for (name_bind, (table_instant, table_bind)) in
+                            hpe_comware_workaround_var_binds
+                                .iter()
+                                .zip(hpe_comware_snmp_data.iter())
+                        {
+                            let mut table_bind = table_bind.clone();
+                            if table_bind.value() == &VarValue::NoSuchInstance {
+                                trace!("collect_device({}): hpe_comware_workaround: {} = {} ->  NoSuchInstance for value, assuming 0_64", device_name, name_bind.name(), msnmp::format_var_bind::format_var_value(name_bind.value()));
+                                table_bind.set_value(VarValue::BigCounter(0));
+                            }
+                            channel
+                                .send(SnmpStatResult {
+                                    device: device_name.to_string(),
+                                    timestamp: *table_instant,
+                                    key: name_bind.clone(),
+                                    value: table_bind.clone(),
+                                })
+                                .unwrap();
                         }
-                        channel
-                            .send(SnmpStatResult {
-                                device: device_name.to_string(),
-                                timestamp: *table_instant,
-                                key: name_bind.clone(),
-                                value: table_bind.clone(),
-                            })
-                            .unwrap();
                     }
+
+                    // clear, will be filled with new missing var binds in the next iteration
                     hpe_comware_workaround_var_binds.clear();
                 }
             }
