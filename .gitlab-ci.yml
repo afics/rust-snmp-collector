@@ -10,7 +10,7 @@ stages:
     paths:
     - target/debug
   script:
-    - cargo build
+    - cargo build --locked
 
 .build_deb_template: &build_deb
   stage: build
@@ -20,7 +20,7 @@ stages:
     - target/debug
   script:
     - cargo install cargo-deb
-    - cargo deb
+    - cargo deb -- --locked
   artifacts:
     paths:
       - target/debian
@@ -32,7 +32,7 @@ stages:
     paths:
       - target/debug
   script:
-    - cargo doc
+    - cargo doc --locked
   artifacts:
     paths:
       - target/doc
@@ -45,7 +45,7 @@ stages:
     paths:
     - target
   script:
-    - cargo test
+    - cargo test --locked
 
 
 build:build:
