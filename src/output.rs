@@ -104,7 +104,7 @@ pub fn sanitize_carbon(s: &str) -> String {
     s.replace("-", "_").replace(".", "__").replace("/", "_")
 }
 
-pub fn format_key(device_name: &String, variable_part: &String, metric_name: &String) -> String {
+pub fn format_key(device_name: &str, variable_part: &str, metric_name: &str) -> String {
     format!(
         "{}.{}.{}",
         sanitize_carbon(device_name),
@@ -113,12 +113,7 @@ pub fn format_key(device_name: &String, variable_part: &String, metric_name: &St
     )
 }
 
-pub fn format_carbon(
-    prefix: &String,
-    metric: &String,
-    value: &String,
-    timestamp: &SystemTime,
-) -> String {
+pub fn format_carbon(prefix: &str, metric: &str, value: &str, timestamp: &SystemTime) -> String {
     format!(
         "{}.{} {} {}",
         prefix,

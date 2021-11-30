@@ -121,7 +121,7 @@ fn main() -> Result<(), Error> {
         let _: Vec<_> = ScanDir::files()
             .walk(mibdir, |iter| {
                 iter.filter(|&(_, ref name)| {
-                    required_mibs.contains(name.split(".").nth(0).unwrap())
+                    required_mibs.contains(name.split('.').nth(0).unwrap())
                 })
                 .map(|(ref entry, _)| {
                     // load mib

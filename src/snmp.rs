@@ -76,28 +76,25 @@ pub fn vec_to_var_binds(v: Vec<u64>) -> VarBind {
 }
 
 fn find_module<'a>(
-    module: &String,
-    mibs: &'a Vec<mib_parser::MibInfo>,
+    module: &str,
+    mibs: &'a [mib_parser::MibInfo],
 ) -> Option<&'a mib_parser::Module> {
     mibs.iter()
-        .filter(|v| v.modules.iter().filter(|m| module == &m.name).count() > 0)
+        .filter(|v| v.modules.iter().filter(|m| module == m.name).count() > 0)
         .nth(0)?
         .modules
         .iter()
-        .filter(|m| module == &m.name)
+        .filter(|m| module == m.name)
         .nth(0)
 }
 
-pub fn build_snmp_mib_tree(
-    oid: &String,
-    mibs: &Vec<mib_parser::MibInfo>,
-) -> Result<Vec<u64>, Error> {
+pub fn build_snmp_mib_tree(oid: &str, mibs: &[mib_parser::MibInfo]) -> Result<Vec<u64>, Error> {
     let mut tree_oid: Vec<u64> = vec![];
 
     let oid_module = oid.split("::").nth(0).unwrap().to_string();
     let oid_field = oid.split("::").nth(1).unwrap().to_string();
 
-    let module = find_module(&oid_module, &mibs);
+    let module = find_module(&oid_module, mibs);
 
     if module.is_none() {
         return Err(format_err!(
@@ -108,7 +105,7 @@ pub fn build_snmp_mib_tree(
     }
     let module = module.unwrap();
 
-    let mut oid_field = oid_field.clone();
+    let mut oid_field = oid_field;
 
     loop {
         trace!(
@@ -178,8 +175,6 @@ pub fn var_bind_to_i128(v: VarBind) -> Option<i128> {
         snmp_mp::VarValue::BigCounter(value) => Some((*value).into()),
         snmp_mp::VarValue::Int(value) => Some((*value).into()),
         snmp_mp::VarValue::TimeTicks(value) => Some((*value).into()),
-        _ => {
-            return None;
-        }
+        _ => None,
     }
 }
