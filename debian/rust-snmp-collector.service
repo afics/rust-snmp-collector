@@ -1,5 +1,5 @@
 [Unit]
-Description=rust-snmp-collector all configs combineed
+Description=rust-snmp-collector all configs combined
 Wants=network-online.target
 After=network-online.target
 
