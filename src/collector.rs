@@ -75,7 +75,8 @@ pub fn collect_device_safe(
     let interval = Duration::from_secs(device.interval.into());
     let backoff = interval / 3;
 
-    let startup_delay = Duration::from_secs(rand::thread_rng().gen_range(0..interval.as_secs()));
+    let startup_delay =
+        Duration::from_secs(rand::thread_rng().gen_range(0..(interval.as_secs() / 3)));
     debug!(
         "collect_device_safe({}): startup delay -> sleeping for {:?}",
         device_name, startup_delay
