@@ -7,7 +7,7 @@ After=network-online.target
 Type=simple
 DynamicUser=yes
 EnvironmentFile=/etc/rust-snmp-collector/environment
-ExecStart=/usr/bin/rust-snmp-collector run
+ExecStart=/usr/bin/rust-snmp-collector -d /etc/rust-snmp-collector/config.d run
 
 Restart=always
 RestartSec=10

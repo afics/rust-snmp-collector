@@ -25,7 +25,6 @@ mod stat_result;
 
 use cli::{Command, Opts};
 use collector::collect_device_safe;
-use config::Config;
 use output::{carbon_send_safe, CarbonMetricValue};
 use snmp::vec_to_var_binds;
 
@@ -41,12 +40,22 @@ fn main() -> Result<(), Error> {
     let cli_preflight_check = Command::PreflightCheck == cli.command;
 
     // do stuff FIXME
-    let config_file_path = cli.config;
+    let mut config = config::Config::default();
+    if let Some(config_file_path) = cli.config {
+        // load configuration from a single file
+        config = config::from_file(&config_file_path)?;
+    } else if let Some(config_directory_path) = cli.config_dir {
+        // combine the configuration from multiple files
+        config::from_directory(&config_directory_path, &mut config)?;
+    }
 
-    debug!("config(file={}): loading from file", config_file_path);
-    let config: Arc<Config> = Arc::new(config::from_file(&config_file_path)?);
+    if config.output.is_none() {
+        bail!("config: no output defined")
+    }
 
-    debug!("config(file={}): validating", config_file_path);
+    let config = Arc::new(config);
+
+    debug!("validating config");
     // validated configuration
     for (device_name, device) in config.devices.iter() {
         for collector in &device.collect {
@@ -59,7 +68,10 @@ fn main() -> Result<(), Error> {
             }
         }
     }
-    debug!("config(file={}): validation successful", config_file_path);
+    debug!(
+        "config: validation successful, loaded {} devices",
+        config.devices.len()
+    );
 
     if cli_config_test {
         debug!("Configtest succeeded");
@@ -67,10 +79,7 @@ fn main() -> Result<(), Error> {
         return Ok(());
     }
 
-    debug!(
-        "config(file={}): determining required mibs and oid var_bind maps",
-        config_file_path
-    );
+    debug!("config: determining required mibs and oid var_bind maps");
     let mut required_mibs: HashSet<String> = env::var("MIBS")
         .unwrap_or_else(|_| "SNMPv2-MIB:SNMPv2-SMI".to_string())
         .split(':')
@@ -88,10 +97,7 @@ fn main() -> Result<(), Error> {
     }
 
     let required_mibs = required_mibs;
-    debug!(
-        "config(file={}): required mibs = {:?}",
-        config_file_path, required_mibs
-    );
+    debug!("config: required mibs = {:?}", required_mibs);
 
     let mibdirs: Vec<String> = env::var("MIBDIRS")
         .unwrap_or_else(|_| "/var/lib/snmp/mibs:/usr/share/mibs:/usr/share/snmp/mibs".to_string())
@@ -213,7 +219,7 @@ fn main() -> Result<(), Error> {
         .name("carbon_output".to_string())
         .spawn(move || {
             carbon_send_safe(
-                config.output.clone(),
+                config.output.as_ref().unwrap().clone(),
                 carbon_chan_recovery_sender,
                 carbon_chan_receiver,
             )

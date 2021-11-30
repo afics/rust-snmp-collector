@@ -23,13 +23,12 @@ pub enum Command {
 )]
 pub struct Opts {
     /// Provide a path to the configuration file
-    #[clap(
-        short,
-        long,
-        value_name = "FILE",
-        default_value = "/etc/rust-snmp-collector/config.d"
-    )]
-    pub config: String,
+    #[clap(short, long, value_name = "FILE")]
+    pub config: Option<String>,
+
+    /// Provide a path to a configuration directory. Note: -c and -foo are mutually exclusive
+    #[clap(short = 'd', long, value_name = "DIRECTORY", conflicts_with = "config")]
+    pub config_dir: Option<String>,
     #[clap(subcommand)]
     pub command: Command,
 }
