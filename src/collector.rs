@@ -108,15 +108,16 @@ pub fn collect_device_safe(
             );
 
             thread::sleep(Duration::from_secs_f64(backoff));
-            backoff = backoff * backoff_multiplier;
-            if backoff > max_backoff {
-                backoff = max_backoff;
-            }
 
             info!(
                 "collect_device_safe({}): backoff {:?} done, retrying...",
                 device_name, backoff
             );
+
+            backoff = backoff * backoff_multiplier;
+            if backoff > max_backoff {
+                backoff = max_backoff;
+            }
         }
     }
 }
