@@ -72,8 +72,12 @@ pub fn collect_device_safe(
     channel: CrossbeamSender<SnmpStatResult>,
 ) {
     let device = config.devices.get(&device_name).unwrap();
+
     let interval = Duration::from_secs(device.interval.into());
-    let backoff = interval / 3;
+
+    let mut backoff: f64 = (interval.as_secs() as f64) / 3.0;
+    let max_backoff: f64 = (interval.as_secs() as f64) * 5.0;
+    let backoff_multiplier: f64 = 2.0;
 
     let startup_delay =
         Duration::from_secs(rand::thread_rng().gen_range(0..(interval.as_secs() / 3)));
@@ -102,7 +106,13 @@ pub fn collect_device_safe(
                 "collect_device_safe({}): error: {}; backing off for {:?}",
                 device_name, error_debug_str, backoff
             );
-            thread::sleep(backoff);
+
+            thread::sleep(Duration::from_secs_f64(backoff));
+            backoff = backoff * backoff_multiplier;
+            if backoff > max_backoff {
+                backoff = max_backoff;
+            }
+
             info!(
                 "collect_device_safe({}): backoff {:?} done, retrying...",
                 device_name, backoff
