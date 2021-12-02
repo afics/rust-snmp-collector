@@ -761,7 +761,7 @@ checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
 
 [[package]]
 name = "rust-snmp-collector"
-version = "0.3.5"
+version = "0.3.6"
 dependencies = [
  "anyhow",
  "clap 3.0.0-beta.5",

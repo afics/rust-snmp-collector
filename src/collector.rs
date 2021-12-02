@@ -26,7 +26,7 @@ use crate::snmp::{
 use crate::stat_result::SnmpStatResult;
 
 macro_rules! collect_device {
-    ($digest:ty, $device_name:expr, $config:expr, $oid_var_bind_map:expr, $channel:expr) => {{
+    ($digest:ty, $device_name:expr, $config:expr, $oid_var_bind_map:expr, $channel:expr, $backoff:expr) => {{
         let device = $config.devices.get($device_name).unwrap();
         if SnmpPrivProtocol::Aes == device.snmp.privprotocol {
             let salt = rand::random();
@@ -34,7 +34,14 @@ macro_rules! collect_device {
                 $digest,
                 Aes128PrivKey<$digest>,
                 <Aes128PrivKey<$digest> as PrivKey>::Salt,
-            >($device_name, $config, $oid_var_bind_map, $channel, salt)
+            >(
+                $device_name,
+                $config,
+                $oid_var_bind_map,
+                $channel,
+                salt,
+                $backoff,
+            )
         } else {
             let salt = rand::random();
             collect_device_::<$digest, DesPrivKey<$digest>, <DesPrivKey<$digest> as PrivKey>::Salt>(
@@ -43,6 +50,7 @@ macro_rules! collect_device {
                 $oid_var_bind_map,
                 $channel,
                 salt,
+                $backoff,
             )
         }
     }};
@@ -53,14 +61,29 @@ pub fn collect_device(
     config: Arc<Config>,
     oid_var_bind_map: HashMap<String, VarBind>,
     channel: CrossbeamSender<SnmpStatResult>,
+    backoff: &mut f64,
 ) -> Result<(), Error> {
     let device = config.devices.get(&device_name).unwrap();
     match &device.snmp.authprotocol {
         SnmpAuthProtocol::Sha => {
-            collect_device!(Sha1, &device_name, config, oid_var_bind_map, channel)
+            collect_device!(
+                Sha1,
+                &device_name,
+                config,
+                oid_var_bind_map,
+                channel,
+                backoff
+            )
         }
         SnmpAuthProtocol::Md5 => {
-            collect_device!(Md5, &device_name, config, oid_var_bind_map, channel)
+            collect_device!(
+                Md5,
+                &device_name,
+                config,
+                oid_var_bind_map,
+                channel,
+                backoff
+            )
         }
     }
 }
@@ -75,8 +98,8 @@ pub fn collect_device_safe(
 
     let interval = Duration::from_secs(device.interval.into());
 
-    let mut backoff: f64 = (interval.as_secs() as f64) / 3.0;
-    let max_backoff: f64 = (interval.as_secs() as f64) * 5.0;
+    let mut backoff: f64 = calc_initial_backoff(interval);
+    let max_backoff: f64 = interval.as_secs_f64() * 5.0;
     let backoff_multiplier: f64 = 2.0;
 
     let startup_delay =
@@ -93,6 +116,7 @@ pub fn collect_device_safe(
             config.clone(),
             oid_var_bind_map.clone(),
             channel.clone(),
+            &mut backoff,
         );
         if let Err(error) = &collect {
             // condense error
@@ -114,7 +138,7 @@ pub fn collect_device_safe(
                 device_name, backoff
             );
 
-            backoff = backoff * backoff_multiplier;
+            backoff *= backoff_multiplier;
             if backoff > max_backoff {
                 backoff = max_backoff;
             }
@@ -128,6 +152,7 @@ fn collect_device_<'a, D: 'a, P, S>(
     oid_var_bind_map: HashMap<String, VarBind>,
     channel: CrossbeamSender<SnmpStatResult>,
     salt: P::Salt,
+    backoff: &mut f64,
 ) -> Result<(), Error>
 where
     D: Digest,
@@ -196,6 +221,9 @@ where
             // request snmp data
             let table_names =
                 snmp_fetch_table(vec![collect_key.clone()], &mut client, &mut session)?;
+
+            // reset backoff after successful fetch of table_names
+            *backoff = calc_initial_backoff(interval);
 
             debug!(
                 "collect_device({}) fetch_table({:?}) done",
@@ -327,4 +355,8 @@ where
             );
         }
     }
+}
+
+fn calc_initial_backoff(interval: Duration) -> f64 {
+    interval.as_secs_f64() / 3.0
 }
