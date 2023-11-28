@@ -9,12 +9,12 @@ description = "Request information via SNMP and send it to a metrics database"
 
 [dependencies]
 anyhow = "1.0"
-clap = "3.0.0-beta.5"
+clap = { version = "4.2.7", features = [ "cargo", "derive" ] }
 config-file = { version = "0.2.1", features = [ "yaml" ] }
 crossbeam-channel = "0.5.1"
-env_logger = "0.9.0"
+env_logger = "0.10.1"
 log = "0.4.14"
-mib_parser = { git = "https://github.com/afics/mib-parser", rev = "299a60a5d35fbfa4f8b9f94fd58874e9e9c3b2e8" }
+mib_parser = { git = "https://github.com/afics/mib-parser", rev = "0fd0832d6d7ad401dc480bc3120d185e1dc117c9" }
 rand = "0.8.4"
 scan_dir = "0.3.3"
 serde = { version = "1.0.130", features = [ "derive" ] }

@@ -1,4 +1,4 @@
-use clap::{crate_authors, crate_version, AppSettings, Parser};
+use clap::{crate_authors, crate_version, Parser};
 
 #[derive(Parser, Debug, PartialEq)]
 pub enum Command {
@@ -18,8 +18,8 @@ pub enum Command {
 #[clap(
     version = crate_version!(),
     author = crate_authors!(", "),
-    global_setting = AppSettings::InferSubcommands,
-    global_setting = AppSettings::PropagateVersion,
+    infer_subcommands = true,
+    propagate_version = true,
 )]
 pub struct Opts {
     /// Provide a path to the configuration file
