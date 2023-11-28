@@ -169,9 +169,7 @@ where
         let config_data_entry = config.data.get(collect).unwrap();
         let instance_oid = oid_var_bind_map.get(&config_data_entry.instance).unwrap();
 
-        let entry = collect_map
-            .entry(instance_oid.clone())
-            .or_insert_with(HashSet::new);
+        let entry = collect_map.entry(instance_oid.clone()).or_default();
 
         for value in &config_data_entry.values {
             entry.insert(oid_var_bind_map.get(value).unwrap().clone());

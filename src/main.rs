@@ -120,15 +120,15 @@ fn main() -> Result<(), Error> {
 
         let _: Vec<_> = ScanDir::files()
             .walk(mibdir, |iter| {
-                iter.filter(|&(_, ref name)| {
-                    required_mibs.contains(name.split('.').nth(0).unwrap())
-                })
-                .map(|(ref entry, _)| {
-                    // load mib
-                    debug!("mibs: parsing {:?}", entry.path());
-                    mibs.push(mib_parser::parse_file(&entry.path(), &mib_parse_options).unwrap());
-                })
-                .collect()
+                iter.filter(|(_, name)| required_mibs.contains(name.split('.').nth(0).unwrap()))
+                    .map(|(ref entry, _)| {
+                        // load mib
+                        debug!("mibs: parsing {:?}", entry.path());
+                        mibs.push(
+                            mib_parser::parse_file(&entry.path(), &mib_parse_options).unwrap(),
+                        );
+                    })
+                    .collect()
             })
             .unwrap();
     }
@@ -178,7 +178,7 @@ fn main() -> Result<(), Error> {
                     let key = output::format_key(
                         device_name,
                         &format!("<{}>", collector_def.instance),
-                        &collector_value.split("::").nth(1).unwrap().to_string(),
+                        collector_value.split("::").nth(1).unwrap(),
                     );
                     println!("{}", key);
                 }
@@ -247,7 +247,7 @@ fn main() -> Result<(), Error> {
 
         // example: IF-MIB::ifName -> Ethernet1/1
         let key_value = snmp::var_numeric_value_to_string(result.key.value());
-        if key_value == None {
+        if key_value.is_none() {
             warn!(
                 "result_loop(for {}): can not handle non numeric values ({}).",
                 result.device, val_name
@@ -257,7 +257,7 @@ fn main() -> Result<(), Error> {
 
         // actual metric value
         let value = snmp::var_bind_to_i128(result.value);
-        if value == None {
+        if value.is_none() {
             warn!(
                 "result_loop(for {}): can not handle snmp result for {}",
                 result.device, val_name

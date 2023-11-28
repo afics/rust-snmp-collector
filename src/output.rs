@@ -101,7 +101,7 @@ pub fn carbon_send(
 }
 
 pub fn sanitize_carbon(s: &str) -> String {
-    s.replace("-", "_").replace(".", "__").replace("/", "_")
+    s.replace('-', "_").replace('.', "__").replace('/', "_")
 }
 
 pub fn format_key(device_name: &str, variable_part: &str, metric_name: &str) -> String {

@@ -97,7 +97,7 @@ pub fn from_directory(path: &str, config: &mut Config) -> Result<(), Error> {
     // enumerate yaml files which we nened to parse
     let files: Vec<_> = ScanDir::files()
         .walk(path, |iter| {
-            iter.filter(|&(_, ref name)| name.ends_with(".yaml"))
+            iter.filter(|(_, name)| name.ends_with(".yaml"))
                 .map(|(ref entry, _)| entry.path())
                 .collect()
         })
