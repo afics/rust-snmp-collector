@@ -52,25 +52,6 @@ build:build:
   image: rust
   <<: *build_build
 
-
-# debian buster
-build:build:buster:
-  image: rust:buster
-  <<: *build_build
-
-build:deb:buster:
-  image: rust:buster
-  <<: *build_deb
-
-build:doc:buster:
-  image: rust:buster
-  <<: *build_doc
-
-test:test:buster:
-  image: rust:buster
-  <<: *test_test
-
-
 # debian bullseye
 build:build:bullseye:
   image: rust:bullseye
@@ -88,6 +69,22 @@ test:test:bullseye:
   image: rust:bullseye
   <<: *test_test
 
+# debian bookworm
+build:build:bookworm:
+  image: rust:bookworm
+  <<: *build_build
+
+build:deb:bookworm:
+  image: rust:bookworm
+  <<: *build_deb
+
+build:doc:bookworm:
+  image: rust:bookworm
+  <<: *build_doc
+
+test:test:bookworm:
+  image: rust:bookworm
+  <<: *test_test
 
 # test:deb:
 #   stage: test
