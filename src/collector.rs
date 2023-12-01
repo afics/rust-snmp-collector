@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::convert::TryInto;
 use std::iter::Iterator;
 use std::sync::Arc;
 use std::thread;
@@ -102,8 +103,9 @@ pub fn collect_device_safe(
     let max_backoff: f64 = interval.as_secs_f64() * 5.0;
     let backoff_multiplier: f64 = 2.0;
 
-    let startup_delay =
-        Duration::from_secs(rand::thread_rng().gen_range(0..(interval.as_secs() / 3)));
+    debug!("calculating startup delay: ");
+    let max_startup_delay: u64 = (interval.as_millis() / 3).try_into().unwrap();
+    let startup_delay = Duration::from_millis(rand::thread_rng().gen_range(0..max_startup_delay));
     debug!(
         "collect_device_safe({}): startup delay -> sleeping for {:?}",
         device_name, startup_delay
