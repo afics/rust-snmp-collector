@@ -10,6 +10,7 @@ pkgs.mkShell {
     rustc
     cargo
     rust-analyzer
+    tokio-console
   ];
 
   RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";

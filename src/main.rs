@@ -1,16 +1,15 @@
 #![allow(clippy::iter_nth_zero)]
 
+use flume::unbounded;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::iter::Iterator;
 use std::path::Path;
 use std::sync::Arc;
-use std::thread;
 use std::time::SystemTime;
 
 use anyhow::{bail, Error, Result};
 use clap::Parser;
-use crossbeam_channel::unbounded;
 use log::{debug, info, trace, warn};
 use scan_dir::ScanDir;
 
@@ -28,7 +27,10 @@ use collector::collect_device_safe;
 use output::{carbon_send_safe, CarbonMetricValue};
 use snmp::vec_to_var_binds;
 
-fn main() -> Result<(), Error> {
+// TODO: make tokio configurable from configuration file
+#[tokio::main]
+async fn main() -> Result<(), Error> {
+    console_subscriber::init();
     env_logger::init();
 
     // handle commandline arguments
@@ -197,12 +199,11 @@ fn main() -> Result<(), Error> {
         let oid_var_bind_map = oid_var_bind_map.clone();
         let snmp_chan_sender = snmp_chan_sender.clone();
         // one thread per device
-        thread::Builder::new()
-            .name(format!("c:{}", device_name))
-            .spawn(move || {
-                collect_device_safe(device_name, config, oid_var_bind_map, snmp_chan_sender)
-            })
-            .unwrap();
+        tokio::task::Builder::new()
+            .name(format!("collect_device_safe({})", device_name).as_str())
+            .spawn(async move {
+                collect_device_safe(device_name, config, oid_var_bind_map, snmp_chan_sender).await
+            })?;
     }
 
     info!(
@@ -215,21 +216,21 @@ fn main() -> Result<(), Error> {
     let carbon_chan_recovery_sender = carbon_chan_sender.clone(); // used to reinject carbonMetricValues on TCP errors
 
     info!("main: starting output thread");
-    thread::Builder::new()
-        .name("carbon_output".to_string())
-        .spawn(move || {
+    tokio::task::Builder::new()
+        .name("carbon_output")
+        .spawn(async move {
             carbon_send_safe(
                 config.output.as_ref().unwrap().clone(),
                 carbon_chan_recovery_sender,
                 carbon_chan_receiver,
             )
-        })
-        .unwrap();
+            .await
+        })?;
 
     // stats processing format SnmpStatResults and send them as carbonMetricValue
     info!("main: starting main processing loop");
     loop {
-        let result = snmp_chan_receiver.recv().unwrap();
+        let result = snmp_chan_receiver.recv_async().await.unwrap();
 
         // convert var_bind oid to its named string
         let result_value_name_oid = result.value.name().components().split_last().unwrap().1;

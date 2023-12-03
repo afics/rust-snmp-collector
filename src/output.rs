@@ -1,11 +1,10 @@
+use flume::{Receiver, Sender};
 use std::io::prelude::*;
 use std::net::TcpStream;
-use std::thread;
 use std::time::Duration;
 use std::time::SystemTime;
 
 use anyhow::Error;
-use crossbeam_channel::{Receiver, Sender};
 use log::{debug, info, trace, warn};
 use size_format::SizeFormatterSI;
 
@@ -18,7 +17,7 @@ pub struct CarbonMetricValue {
     pub value: String,
 }
 
-pub fn carbon_send_safe(
+pub async fn carbon_send_safe(
     output: Output,
     channel_sender: Sender<CarbonMetricValue>,
     channel_receiver: Receiver<CarbonMetricValue>,
@@ -31,7 +30,7 @@ pub fn carbon_send_safe(
             channel_sender.clone(),
             channel_receiver.clone(),
         );
-        if let Err(error) = sender {
+        if let Err(error) = sender.await {
             let (carbon_server, carbon_port) = match &output {
                 Output::CarbonOutput {
                     prefix: _,
@@ -48,7 +47,7 @@ pub fn carbon_send_safe(
                 "carbon_send_safe({}): error {:?}; buffering {} metric values, using {} memory; backing off for {:?}",
                 carbon_host, error, queue_len, SizeFormatterSI::new(memory_consumed), backoff
             );
-            thread::sleep(backoff);
+            tokio::time::sleep(backoff).await;
             info!(
                 "carbon_send_safe({}): backoff {:?} done, retrying...",
                 carbon_host, backoff
@@ -57,7 +56,7 @@ pub fn carbon_send_safe(
     }
 }
 
-pub fn carbon_send(
+pub async fn carbon_send(
     output: Output,
     channel_sender: Sender<CarbonMetricValue>,
     channel_receiver: Receiver<CarbonMetricValue>,
@@ -76,7 +75,7 @@ pub fn carbon_send(
     let mut stream = TcpStream::connect(carbon_host)?;
 
     loop {
-        let metricval = channel_receiver.recv().unwrap();
+        let metricval = channel_receiver.recv_async().await.unwrap();
 
         let buf = format_carbon(
             &prefix,

@@ -1,6 +1,6 @@
 [package]
 name = "rust-snmp-collector"
-version = "0.3.7"
+version = "0.4.0"
 authors = ["Armin Fisslthaler <armin@fisslthaler.net>"]
 edition = "2018"
 license = "GPL-2.0"
@@ -11,7 +11,6 @@ description = "Request information via SNMP and send it to a metrics database"
 anyhow = "1.0"
 clap = { version = "4.2.7", features = [ "cargo", "derive" ] }
 config-file = { version = "0.2.1", features = [ "yaml" ] }
-crossbeam-channel = "0.5.1"
 env_logger = "0.10.1"
 log = "0.4.14"
 mib_parser = { git = "https://github.com/afics/mib-parser", rev = "0fd0832d6d7ad401dc480bc3120d185e1dc117c9" }
@@ -19,9 +18,12 @@ rand = "0.8.4"
 scan_dir = "0.3.3"
 serde = { version = "1.0.130", features = [ "derive" ] }
 size_format = "1.0.2"
-msnmp = { git = "https://github.com/afics/modern_snmp", rev = "84cbae0ef8d18354a4d9a5b8ca270c3536d02555" }
-snmp_mp = { git = "https://github.com/afics/modern_snmp", rev = "84cbae0ef8d18354a4d9a5b8ca270c3536d02555" }
-snmp_usm = { git = "https://github.com/afics/modern_snmp", rev = "84cbae0ef8d18354a4d9a5b8ca270c3536d02555" }
+msnmp = { git = "https://github.com/afics/modern_snmp", rev = "126c16b509e75cd494afea441566966e24840b72" }
+snmp_mp = { git = "https://github.com/afics/modern_snmp", rev = "126c16b509e75cd494afea441566966e24840b72" }
+snmp_usm = { git = "https://github.com/afics/modern_snmp", rev = "126c16b509e75cd494afea441566966e24840b72" }
+tokio = { version = "1.34.0", features = [ "full", "tracing" ] }
+console-subscriber = "0.2.0"
+flume = "0.11.0"
 
 [package.metadata.deb]
 extended-description = "Successor to pysnmpcollector. Gets information from hosts through SNMP and sends it to a Graphite/Carbon output"

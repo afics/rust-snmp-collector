@@ -9,10 +9,10 @@ use msnmp::Client;
 use snmp_mp::{ObjectIdent, PduType, VarBind, VarValue};
 use snmp_usm::{Digest, PrivKey};
 
-pub fn snmp_bulkwalk<D, P, S>(
+pub async fn snmp_bulkwalk<D, P, S>(
     oid: Vec<VarBind>,
     client: &mut Client,
-    session: &mut Session<D, P, S>,
+    session: &mut Session<'_, D, P, S>,
 ) -> Result<Vec<(SystemTime, VarBind)>, Error>
 where
     D: Digest,
@@ -28,7 +28,7 @@ where
         let mut get_next_request =
             msg_factory::create_bulk_request_msg(request_var_binds.clone(), session);
 
-        let get_next_response = client.send_request(&mut get_next_request, session)?;
+        let get_next_response = client.send_request(&mut get_next_request, session).await?;
 
         match get_var_binds(&get_next_response) {
             Some(binds) => {
@@ -46,10 +46,10 @@ where
     }
 }
 
-pub fn snmp_get<D, P, S>(
+pub async fn snmp_get<D, P, S>(
     request_var_binds: Vec<VarBind>,
     client: &mut Client,
-    session: &mut Session<D, P, S>,
+    session: &mut Session<'_, D, P, S>,
 ) -> Result<Vec<(SystemTime, VarBind)>, Error>
 where
     D: Digest,
@@ -61,7 +61,7 @@ where
 
     let mut result: Vec<(SystemTime, VarBind)> = vec![];
 
-    let response = client.send_request(&mut get_request, session)?;
+    let response = client.send_request(&mut get_request, session).await?;
     if let Some(var_binds) = get_var_binds(&response) {
         for var_bind in var_binds {
             result.push((SystemTime::now(), var_bind.clone()));

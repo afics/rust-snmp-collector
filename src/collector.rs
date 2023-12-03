@@ -1,11 +1,9 @@
+use flume::Sender;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::iter::Iterator;
 use std::sync::Arc;
-use std::thread;
 use std::time::{Duration, Instant};
-
-use crossbeam_channel::Sender as CrossbeamSender;
 
 use log::{debug, error, info, trace, warn};
 
@@ -43,6 +41,7 @@ macro_rules! collect_device {
                 salt,
                 $backoff,
             )
+            .await
         } else {
             let salt = rand::random();
             collect_device_::<$digest, DesPrivKey<$digest>, <DesPrivKey<$digest> as PrivKey>::Salt>(
@@ -53,15 +52,16 @@ macro_rules! collect_device {
                 salt,
                 $backoff,
             )
+            .await
         }
     }};
 }
 
-pub fn collect_device(
+pub async fn collect_device(
     device_name: String,
     config: Arc<Config>,
     oid_var_bind_map: HashMap<String, VarBind>,
-    channel: CrossbeamSender<SnmpStatResult>,
+    channel: Sender<SnmpStatResult>,
     backoff: &mut f64,
 ) -> Result<(), Error> {
     let device = config.devices.get(&device_name).unwrap();
@@ -89,11 +89,11 @@ pub fn collect_device(
     }
 }
 
-pub fn collect_device_safe(
+pub async fn collect_device_safe(
     device_name: String,
     config: Arc<Config>,
     oid_var_bind_map: HashMap<String, VarBind>,
-    channel: CrossbeamSender<SnmpStatResult>,
+    channel: Sender<SnmpStatResult>,
 ) {
     let device = config.devices.get(&device_name).unwrap();
 
@@ -110,7 +110,7 @@ pub fn collect_device_safe(
         "collect_device_safe({}): startup delay -> sleeping for {:?}",
         device_name, startup_delay
     );
-    thread::sleep(startup_delay);
+    tokio::time::sleep(startup_delay).await;
 
     loop {
         let collect = collect_device(
@@ -120,7 +120,7 @@ pub fn collect_device_safe(
             channel.clone(),
             &mut backoff,
         );
-        if let Err(error) = &collect {
+        if let Err(error) = &collect.await {
             // condense error
             let error_debug_str = format!("{:#?}", error)
                 .split('\n')
@@ -133,7 +133,7 @@ pub fn collect_device_safe(
                 device_name, error_debug_str, backoff
             );
 
-            thread::sleep(Duration::from_secs_f64(backoff));
+            tokio::time::sleep(Duration::from_secs_f64(backoff)).await;
 
             info!(
                 "collect_device_safe({}): backoff {:?} done, retrying...",
@@ -148,11 +148,11 @@ pub fn collect_device_safe(
     }
 }
 
-fn collect_device_<'a, D: 'a, P, S>(
+async fn collect_device_<'a, D: 'a, P, S>(
     device_name: &str,
     config: Arc<Config>,
     oid_var_bind_map: HashMap<String, VarBind>,
-    channel: CrossbeamSender<SnmpStatResult>,
+    channel: Sender<SnmpStatResult>,
     salt: P::Salt,
     backoff: &mut f64,
 ) -> Result<(), Error>
@@ -193,8 +193,9 @@ where
         device.snmp.host.clone()
     };
 
-    let mut client = Client::new(host, Some(timeout))?;
-    let mut session: Session<D, P, S> = Session::new(&mut client, device.snmp.secname.as_bytes())?;
+    let mut client = Client::new(host, Some(timeout)).await?;
+    let mut session: Session<D, P, S> =
+        Session::new(&mut client, device.snmp.secname.as_bytes()).await?;
 
     let localized_key =
         LocalizedKey::<D>::new(device.snmp.authpassword.as_bytes(), session.engine_id());
@@ -220,7 +221,7 @@ where
 
             // request snmp data
             let table_names =
-                snmp_fetch_table(vec![collect_key.clone()], &mut client, &mut session)?;
+                snmp_fetch_table(vec![collect_key.clone()], &mut client, &mut session).await?;
 
             // reset backoff after successful fetch of table_names
             *backoff = calc_initial_backoff(interval);
@@ -238,7 +239,8 @@ where
                     collect_value.name().components()
                 );
                 let table_values =
-                    snmp_fetch_table(vec![collect_value.clone()], &mut client, &mut session)?;
+                    snmp_fetch_table(vec![collect_value.clone()], &mut client, &mut session)
+                        .await?;
 
                 debug!(
                     "collect_device({}) fetch_table({:?}) done",
@@ -266,12 +268,13 @@ where
                         let (table_instant, table_bind) = table_value.clone();
 
                         channel
-                            .send(SnmpStatResult {
+                            .send_async(SnmpStatResult {
                                 device: device_name.to_string(),
                                 timestamp: table_instant,
                                 key: name_bind.clone(),
                                 value: table_bind,
                             })
+                            .await
                             .unwrap();
                     } else {
                         // we did not, try requesting it through a simple get_request
@@ -312,7 +315,8 @@ where
                             hpe_comware_workaround_value_var_binds,
                             &mut client,
                             &mut session,
-                        )?;
+                        )
+                        .await?;
                         for (name_bind, (table_instant, table_bind)) in
                             hpe_comware_workaround_var_binds
                                 .iter()
@@ -324,12 +328,13 @@ where
                                 table_bind.set_value(VarValue::BigCounter(0));
                             }
                             channel
-                                .send(SnmpStatResult {
+                                .send_async(SnmpStatResult {
                                     device: device_name.to_string(),
                                     timestamp: *table_instant,
                                     key: name_bind.clone(),
                                     value: table_bind.clone(),
                                 })
+                                .await
                                 .unwrap();
                         }
                     }
@@ -347,7 +352,7 @@ where
                 device_name, snmp_duration, wait
             );
 
-            thread::sleep(wait);
+            tokio::time::sleep(wait).await;
         } else {
             warn!(
                 "collect_device({}): snmp took {:?}, which is longer than set interval {:?}",
