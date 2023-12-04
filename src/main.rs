@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::env;
 use std::iter::Iterator;
 use std::path::Path;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -27,10 +28,7 @@ use collector::collect_device_safe;
 use output::{carbon_send_safe, CarbonMetricValue};
 use snmp::vec_to_var_binds;
 
-// TODO: make tokio configurable from configuration file
-#[tokio::main]
-async fn main() -> Result<(), Error> {
-    console_subscriber::init();
+fn main() -> Result<(), Error> {
     env_logger::init();
 
     // handle commandline arguments
@@ -186,105 +184,152 @@ async fn main() -> Result<(), Error> {
         return Ok(());
     }
 
-    // set up channel where we communicate SnmpStatResults
-    let (snmp_chan_sender, snmp_chan_receiver) = unbounded();
+    if config.main.tokio.console.enabled {
+        debug!("main: initializing console_subscriber (tokio-console)");
+        console_subscriber::init();
+    } else {
+        debug!(
+            "main: console_subscriber (tokio-console) initialization skipped, disabled in config"
+        );
+    };
 
-    // start collection threads, one per device
-    for (device_name, _) in config.devices.iter() {
-        let device_name = device_name.clone();
-        let config = config.clone();
-        let oid_var_bind_map = oid_var_bind_map.clone();
-        let snmp_chan_sender = snmp_chan_sender.clone();
-        // one thread per device
-        tokio::task::Builder::new()
-            .name(format!("collect_device_safe({})", device_name).as_str())
-            .spawn(async move {
-                collect_device_safe(device_name, config, oid_var_bind_map, snmp_chan_sender).await
-            })?;
-    }
+    debug!("main: initializing tokio runtime");
+    let mut rt = match config.main.tokio.runtime {
+        config::TokioRuntime::MultiThread { .. } => {
+            debug!("main: tokio multi_thread runtime selected");
+            tokio::runtime::Builder::new_multi_thread()
+        }
+        config::TokioRuntime::CurrentThread => {
+            debug!("main: tokio current_thread runtime selected");
+            tokio::runtime::Builder::new_current_thread()
+        }
+    };
 
-    info!(
-        "main: started collection for {} devices",
-        config.devices.len()
-    );
+    match config.main.tokio.runtime {
+        config::TokioRuntime::MultiThread { worker_threads } => {
+            if let Some(worker_threads) = worker_threads {
+                debug!(
+                    "main: tokio multi_thread runtime worker_threads set to {}",
+                    worker_threads
+                );
+                rt.worker_threads(worker_threads);
+            }
+        }
+        config::TokioRuntime::CurrentThread => {}
+    };
 
-    // start carbon_output thread
-    let (carbon_chan_sender, carbon_chan_receiver) = unbounded();
-    let carbon_chan_recovery_sender = carbon_chan_sender.clone(); // used to reinject carbonMetricValues on TCP errors
+    let rt = rt
+        .thread_name_fn(|| {
+            static ATOMIC_ID: AtomicUsize = AtomicUsize::new(0);
+            let id = ATOMIC_ID.fetch_add(1, Ordering::SeqCst);
+            format!("snmpc-rs#{}", id)
+        })
+        .enable_all()
+        .build()?;
 
-    info!("main: starting output thread");
-    tokio::task::Builder::new()
-        .name("carbon_output")
-        .spawn(async move {
-            carbon_send_safe(
-                config.output.clone(),
-                carbon_chan_recovery_sender,
-                carbon_chan_receiver,
-            )
-            .await
-        })?;
+    debug!("main: starting runtime");
+    rt.block_on(async {
+        // set up channel where we communicate SnmpStatResults
+        let (snmp_chan_sender, snmp_chan_receiver) = unbounded();
 
-    // stats processing format SnmpStatResults and send them as carbonMetricValue
-    info!("main: starting main processing loop");
-    loop {
-        let result = snmp_chan_receiver.recv_async().await.unwrap();
-
-        // convert var_bind oid to its named string
-        let result_value_name_oid = result.value.name().components().split_last().unwrap().1;
-        let full_val_name = oid_var_bind_map
-            .iter()
-            .find_map(|kv| {
-                if kv.1.name().components() == result_value_name_oid {
-                    Some(kv.0.clone())
-                } else {
-                    None
-                }
-            })
-            .unwrap();
-        let val_name = full_val_name.split("::").nth(1).unwrap().to_string();
-
-        // example: IF-MIB::ifName -> Ethernet1/1
-        let key_value = snmp::var_numeric_value_to_string(result.key.value());
-        if key_value.is_none() {
-            warn!(
-                "result_loop(for {}): can not handle non numeric values ({}).",
-                result.device, val_name
-            );
-            continue;
+        // start collection threads, one per device
+        for (device_name, _) in config.devices.iter() {
+            let device_name = device_name.clone();
+            let config = config.clone();
+            let oid_var_bind_map = oid_var_bind_map.clone();
+            let snmp_chan_sender = snmp_chan_sender.clone();
+            // one thread per device
+            tokio::task::Builder::new()
+                .name(format!("collect_device_safe({})", device_name).as_str())
+                .spawn(async move {
+                    collect_device_safe(device_name, config, oid_var_bind_map, snmp_chan_sender)
+                        .await
+                })?;
         }
 
-        // actual metric value
-        let value = snmp::var_bind_to_i128(result.value);
-        if value.is_none() {
-            warn!(
-                "result_loop(for {}): can not handle snmp result for {}",
-                result.device, val_name
-            );
-
-            continue;
-        };
-
-        let key_value = key_value.unwrap();
-
-        let ts = result.timestamp;
-        let key = output::format_key(&result.device, &key_value, &val_name);
-
-        let value = format!("{}", value.unwrap());
-
-        trace!(
-            "result_loop(for {}): sending to carbon '{} {} {}'",
-            result.device,
-            ts.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),
-            key,
-            value
+        info!(
+            "main: started collection for {} devices",
+            config.devices.len()
         );
 
-        carbon_chan_sender
-            .send(CarbonMetricValue {
-                timestamp: ts,
-                metric: key.clone(),
-                value: value.clone(),
-            })
-            .unwrap();
-    }
+        // start carbon_output thread
+        let (carbon_chan_sender, carbon_chan_receiver) = unbounded();
+        let carbon_chan_recovery_sender = carbon_chan_sender.clone(); // used to reinject carbonMetricValues on TCP errors
+
+        info!("main: starting output thread");
+        tokio::task::Builder::new()
+            .name("carbon_output")
+            .spawn(async move {
+                carbon_send_safe(
+                    config.output.clone(),
+                    carbon_chan_recovery_sender,
+                    carbon_chan_receiver,
+                )
+                .await
+            })?;
+
+        // stats processing format SnmpStatResults and send them as carbonMetricValue
+        info!("main: starting main processing loop");
+        loop {
+            let result = snmp_chan_receiver.recv_async().await.unwrap();
+
+            // convert var_bind oid to its named string
+            let result_value_name_oid = result.value.name().components().split_last().unwrap().1;
+            let full_val_name = oid_var_bind_map
+                .iter()
+                .find_map(|kv| {
+                    if kv.1.name().components() == result_value_name_oid {
+                        Some(kv.0.clone())
+                    } else {
+                        None
+                    }
+                })
+                .unwrap();
+            let val_name = full_val_name.split("::").nth(1).unwrap().to_string();
+
+            // example: IF-MIB::ifName -> Ethernet1/1
+            let key_value = snmp::var_numeric_value_to_string(result.key.value());
+            if key_value.is_none() {
+                warn!(
+                    "result_loop(for {}): can not handle non numeric values ({}).",
+                    result.device, val_name
+                );
+                continue;
+            }
+
+            // actual metric value
+            let value = snmp::var_bind_to_i128(result.value);
+            if value.is_none() {
+                warn!(
+                    "result_loop(for {}): can not handle snmp result for {}",
+                    result.device, val_name
+                );
+
+                continue;
+            };
+
+            let key_value = key_value.unwrap();
+
+            let ts = result.timestamp;
+            let key = output::format_key(&result.device, &key_value, &val_name);
+
+            let value = format!("{}", value.unwrap());
+
+            trace!(
+                "result_loop(for {}): sending to carbon '{} {} {}'",
+                result.device,
+                ts.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),
+                key,
+                value
+            );
+
+            carbon_chan_sender
+                .send(CarbonMetricValue {
+                    timestamp: ts,
+                    metric: key.clone(),
+                    value: value.clone(),
+                })
+                .unwrap();
+        }
+    })
 }

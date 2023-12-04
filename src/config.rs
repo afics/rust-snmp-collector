@@ -5,6 +5,52 @@ use log::{debug, trace};
 use scan_dir::ScanDir;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::convert::TryFrom;
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct TokioConsole {
+    // #[serde(default)] # TODO: FIXME
+    pub enabled: bool,
+    pub port: i16,
+}
+
+impl Default for TokioConsole {
+    fn default() -> Self {
+        TokioConsole {
+            enabled: false,
+            port: 6669,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub enum TokioRuntime {
+    #[serde(rename = "current_thread")]
+    CurrentThread,
+    #[serde(rename = "multi_thread")]
+    MultiThread { worker_threads: Option<usize> },
+}
+
+impl Default for TokioRuntime {
+    fn default() -> Self {
+        TokioRuntime::MultiThread {
+            worker_threads: None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Default)]
+pub struct Tokio {
+    #[serde(default)]
+    pub console: TokioConsole,
+    #[serde(default)]
+    pub runtime: TokioRuntime,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Default)]
+pub struct Main {
+    pub tokio: Tokio,
+}
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub enum Output {
@@ -78,6 +124,7 @@ pub struct DeviceEntry {
 
 #[derive(Debug, Deserialize, Serialize, Default)]
 pub struct OptionalConfig {
+    pub main: Option<Main>,
     pub output: Option<Output>,
     pub data: Option<HashMap<String, DataEntry>>,
     pub devices: Option<HashMap<String, DeviceEntry>>,
@@ -85,14 +132,43 @@ pub struct OptionalConfig {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
+    pub main: Main,
     pub output: Output,
     pub data: HashMap<String, DataEntry>,
     pub devices: HashMap<String, DeviceEntry>,
 }
 
+impl TryFrom<OptionalConfig> for Config {
+    type Error = Error;
+
+    fn try_from(config: OptionalConfig) -> Result<Self, Error> {
+        Ok(Config {
+            main: match config.main {
+                Some(main) => main,
+                None => {
+                    debug!("config: 'main' section not specified, assuming default.");
+                    Main::default()
+                }
+            },
+            output: match config.output {
+                Some(output) => output,
+                None => bail!("Missing 'output' section in configuration"),
+            },
+            data: match config.data {
+                Some(data) => data,
+                None => bail!("Missing 'data' section in configuration"),
+            },
+            devices: match config.devices {
+                Some(devices) => devices,
+                None => bail!("Missing 'devices' section in configuration"),
+            },
+        })
+    }
+}
+
 pub fn from_file(path: &str) -> Result<Config, Error> {
-    debug!("config(file={}): loading from file", path);
-    Ok(Config::from_config_file(path)?)
+    let config = from_file_optional(path)?;
+    Config::try_from(config)
 }
 
 fn from_file_optional(path: &str) -> Result<OptionalConfig, Error> {
@@ -175,18 +251,5 @@ pub fn from_directory(path: &str) -> Result<Config, Error> {
 
     trace!("OptionalConfig is: {:#?}", config);
 
-    Ok(Config {
-        output: match config.output {
-            Some(output) => output,
-            None => bail!("Missing 'output' section in configuration"),
-        },
-        data: match config.data {
-            Some(data) => data,
-            None => bail!("Missing 'data' section in configuration"),
-        },
-        devices: match config.devices {
-            Some(devices) => devices,
-            None => bail!("Missing 'devices' section in configuration"),
-        },
-    })
+    Config::try_from(config)
 }

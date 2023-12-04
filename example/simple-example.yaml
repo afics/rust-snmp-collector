@@ -1,3 +1,12 @@
+# it is safe to leave out 'main', only change if you know what you are doing
+main:
+  tokio:
+    console:
+      enabled: false
+      port: 6669
+    runtime:
+      multi_thread: {}
+
 output:
   graphite:
     prefix: rust-snmp-collector
