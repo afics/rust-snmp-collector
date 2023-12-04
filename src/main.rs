@@ -42,18 +42,15 @@ async fn main() -> Result<(), Error> {
     let cli_preflight_check = Command::PreflightCheck == cli.command;
 
     // do stuff FIXME
-    let mut config = config::Config::default();
-    if let Some(config_file_path) = cli.config {
+    let config = if let Some(config_file_path) = cli.config {
         // load configuration from a single file
-        config = config::from_file(&config_file_path)?;
+        config::from_file(&config_file_path)?
     } else if let Some(config_directory_path) = cli.config_dir {
         // combine the configuration from multiple files
-        config::from_directory(&config_directory_path, &mut config)?;
-    }
-
-    if config.output.is_none() {
-        bail!("config: no output defined")
-    }
+        config::from_directory(&config_directory_path)?
+    } else {
+        bail!("Bug in configuration loading logic")
+    };
 
     let config = Arc::new(config);
 
@@ -220,7 +217,7 @@ async fn main() -> Result<(), Error> {
         .name("carbon_output")
         .spawn(async move {
             carbon_send_safe(
-                config.output.as_ref().unwrap().clone(),
+                config.output.clone(),
                 carbon_chan_recovery_sender,
                 carbon_chan_receiver,
             )
